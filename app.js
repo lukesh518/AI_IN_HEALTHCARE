@@ -520,34 +520,49 @@ function appendAuditLog(eventType, portal, summary, details, humanDecision = nul
 
 // Portal Switching
 function switchPortal(portalId) {
-  State.activePortal = portalId;
+  try {
+    State.activePortal = portalId;
 
-  document.querySelectorAll('.nav-tab-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-portal') === portalId);
-  });
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-portal') === portalId);
+    });
 
-  document.querySelectorAll('.portal-panel').forEach(panel => {
-    panel.classList.toggle('active', panel.id === `panel-${portalId}`);
-  });
+    document.querySelectorAll('.portal-panel').forEach(panel => {
+      const isActive = panel.id === `panel-${portalId}`;
+      panel.classList.toggle('active', isActive);
+      panel.style.display = isActive ? 'block' : 'none';
+    });
 
-  const mapWrapper = document.getElementById('ambulance-map-wrapper');
-  if (mapWrapper) {
-    mapWrapper.style.display = (portalId === 'ambulance') ? 'flex' : 'none';
+    const mapWrapper = document.getElementById('ambulance-map-wrapper');
+    const backdrop = document.getElementById('map-backdrop');
+    if (mapWrapper) {
+      mapWrapper.style.display = (portalId === 'ambulance') ? 'flex' : 'none';
+      if (portalId !== 'ambulance') {
+        mapWrapper.classList.remove('corner-map-maximized');
+        mapWrapper.classList.add('corner-map-minimized');
+        State.isMapMaximized = false;
+        if (backdrop) backdrop.style.display = 'none';
+      }
+    }
+
+    if (portalId === 'ambulance') {
+      renderAmbulancePortal();
+      setTimeout(() => {
+        if (leafletMap) leafletMap.invalidateSize();
+        renderMap();
+      }, 150);
+    } else if (portalId === 'patient') {
+      renderPatientNearbyHospitals();
+    } else if (portalId === 'hospital') {
+      renderHospitalPortal();
+    } else if (portalId === 'evaluation') {
+      renderEvaluationPortal();
+    } else if (portalId === 'audit') {
+      renderAuditPortal();
+    }
+  } catch (err) {
+    console.error("Error during switchPortal to", portalId, err);
   }
-
-  if (portalId === 'ambulance') {
-    renderAmbulancePortal();
-    setTimeout(() => {
-      if (leafletMap) leafletMap.invalidateSize();
-      renderMap();
-    }, 150);
-  }
-  if (portalId === 'patient') {
-    renderPatientNearbyHospitals();
-  }
-  if (portalId === 'hospital') renderHospitalPortal();
-  if (portalId === 'evaluation') renderEvaluationPortal();
-  if (portalId === 'audit') renderAuditPortal();
 }
 
 // Map Maximization / Minimization Controller
@@ -607,85 +622,202 @@ function handleMapWrapperClick(event) {
 // PORTAL A: PATIENT PORTAL & REALTIME LOCATION
 // ------------------------------------------
 
-// Geolocation with Explicit User Permission
-function requestPatientGeolocation() {
+// Distance Calculation (Haversine formula in kilometers)
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Distance Calculation (Haversine formula + Urban transit factor)
+function updateHospitalDistancesFromLocation(userLat, userLng) {
+  if (!State.hospitals || State.hospitals.length === 0) return;
+
+  State.hospitals.forEach(h => {
+    const rawDist = calculateHaversineKm(userLat, userLng, h.lat, h.lng);
+    h.calculatedDistanceKm = parseFloat((rawDist * 1.32).toFixed(1));
+    h.calculatedEtaMinutes = Math.max(3, Math.round((h.calculatedDistanceKm / 34) * 60 + 2));
+  });
+}
+
+// Geolocation with Explicit User Permission & Dynamic Anchoring
+function applyUserLiveLocation(lat, lng, acc) {
+  State.userLocation = { lat, lng, accuracy: acc, isLive: true };
+  State.patientLocation = { lat, lng, isUserGPS: true, accuracy: acc };
+  State.currentCase.location = {
+    lat,
+    lng,
+    name: `User Live GPS (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E ±${acc}m)`
+  };
+
+  // If user is more than 45km away from default Bengaluru coordinates (12.9716, 77.5946),
+  // dynamically re-anchor accredited hospital facilities and ambulance around user's position
+  const distFromBlr = calculateHaversineKm(lat, lng, 12.9716, 77.5946);
+  if (distFromBlr > 45) {
+    const offsets = [
+      { dLat:  0.012, dLng:  0.015 }, // ~2.1 km NE (Metro Heart)
+      { dLat: -0.018, dLng:  0.022 }, // ~3.3 km SE (City Central)
+      { dLat:  0.025, dLng:  0.018 }, // ~3.5 km NE (Apex Neuro)
+      { dLat: -0.015, dLng: -0.012 }, // ~2.3 km SW (St. Jude)
+      { dLat:  0.022, dLng: -0.016 }, // ~3.2 km NW (Sunrise Pulmonary)
+      { dLat: -0.024, dLng: -0.005 }  // ~2.7 km S (Green Valley)
+    ];
+
+    if (State.hospitals && State.hospitals.length > 0) {
+      State.hospitals.forEach((h, idx) => {
+        const off = offsets[idx % offsets.length];
+        h.lat = parseFloat((lat + off.dLat).toFixed(6));
+        h.lng = parseFloat((lng + off.dLng).toFixed(6));
+      });
+    }
+
+    State.ambulanceLocation = {
+      lat: parseFloat((lat - 0.008).toFixed(6)),
+      lng: parseFloat((lng - 0.006).toFixed(6))
+    };
+  }
+
+  // Recalculate hospital distances and ETAs
+  updateHospitalDistancesFromLocation(lat, lng);
+
+  // Update Header GPS Badge
+  const headerGpsBadge = document.getElementById('header-gps-badge');
+  if (headerGpsBadge) {
+    headerGpsBadge.style.display = 'inline-flex';
+    headerGpsBadge.innerHTML = `📍 Live GPS: ${lat.toFixed(4)}°, ${lng.toFixed(4)}° (±${acc}m)`;
+    headerGpsBadge.title = `Latitude: ${lat}, Longitude: ${lng}, Accuracy: ±${acc}m. Click to refresh.`;
+  }
+
+  // Update Patient Portal Location Box
+  const displayEl = document.getElementById('patient-location-display');
+  if (displayEl) {
+    displayEl.innerHTML = `
+      <strong style="color: #34d399;">✅ Live Location Locked:</strong> ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E (±${acc}m accuracy)
+    `;
+  }
+
+  const statusEl = document.getElementById('location-permission-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = `<span style="color: #34d399;">✓ Location permission active. Realtime hospital distances & dispatch ETAs calibrated to your live GPS.</span>`;
+  }
+
+  const btn = document.getElementById('btn-request-location');
+  if (btn) {
+    btn.innerHTML = `✅ Live GPS Active (±${acc}m)`;
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+  }
+
+  // Update Map Status Pill
+  const mapStatusPill = document.getElementById('map-status-pill');
+  if (mapStatusPill) {
+    mapStatusPill.innerHTML = `GPS Active: User Location Locked`;
+  }
+
+  // Re-render Patient Nearby Hospitals
+  renderPatientNearbyHospitals();
+
+  // Center Leaflet Map on user's live position
+  if (leafletMap) {
+    leafletMap.setView([lat, lng], 13);
+    renderMap();
+  }
+
+  appendAuditLog(
+    "GEOLOCATION_CAPTURED",
+    "SYSTEM",
+    `User live location confirmed at ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${acc}m). Emergency routing anchor updated.`
+  );
+
+  // Attempt reverse geocoding via OpenStreetMap Nominatim for human-readable city/area name
+  try {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.address) {
+          const area = data.address.suburb || data.address.neighbourhood || data.address.city_district || data.address.town || data.address.city || "";
+          const city = data.address.city || data.address.state_district || data.address.state || "";
+          const locationName = [area, city].filter(Boolean).join(", ");
+          if (locationName) {
+            State.currentCase.location.name = locationName;
+            if (displayEl) {
+              displayEl.innerHTML = `
+                <strong style="color: #34d399;">✅ Live Location:</strong> ${locationName} (${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E, ±${acc}m)
+              `;
+            }
+            if (headerGpsBadge) {
+              headerGpsBadge.innerHTML = `📍 Live GPS: ${locationName} (±${acc}m)`;
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  } catch (e) {}
+}
+
+function requestUserLiveLocation(forcePrompt = false) {
   const statusEl = document.getElementById('location-permission-status');
   const displayEl = document.getElementById('patient-location-display');
   const btn = document.getElementById('btn-request-location');
+  const headerGpsBadge = document.getElementById('header-gps-badge');
 
   if (!navigator.geolocation) {
+    console.warn("Geolocation API not supported by browser.");
     if (statusEl) {
       statusEl.style.display = 'block';
-      statusEl.innerHTML = `<span style="color: #f87171;">⚠️ Geolocation is not supported by your browser.</span>`;
+      statusEl.innerHTML = `<span style="color: #f87171;">⚠️ Geolocation is not supported by this browser. Defaulting to Richmond Town, Bengaluru.</span>`;
+    }
+    if (headerGpsBadge) {
+      headerGpsBadge.style.display = 'inline-flex';
+      headerGpsBadge.innerHTML = `📍 GPS: Bengaluru (Default)`;
     }
     return;
   }
 
-  if (btn) btn.innerHTML = `⏳ Asking Permission...`;
+  if (btn) {
+    btn.innerHTML = `⏳ Requesting GPS Permission...`;
+  }
+  if (headerGpsBadge) {
+    headerGpsBadge.style.display = 'inline-flex';
+    headerGpsBadge.innerHTML = `📡 Detecting Live GPS...`;
+  }
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const acc = Math.round(pos.coords.accuracy);
-
-      State.patientLocation = { lat, lng, isUserGPS: true, accuracy: acc };
-      State.currentCase.location = { lat, lng, name: `Patient Live GPS (±${acc}m accuracy)` };
-
-      if (displayEl) {
-        displayEl.innerHTML = `
-          <strong style="color: #34d399;">✅ Live Location Detected:</strong> ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E (±${acc}m accuracy)
-        `;
-      }
-      if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.innerHTML = `<span style="color: #34d399;">✓ Location permission granted. Realtime nearby hospital distances & ETAs updated.</span>`;
-      }
-      if (btn) {
-        btn.innerHTML = `✅ Location Locked`;
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-success');
-      }
-
-      // Update real hospital distances from this user's location
-      updateHospitalDistancesFromLocation(lat, lng);
-      renderPatientNearbyHospitals();
-      if (leafletMap) {
-        leafletMap.setView([lat, lng], 13);
-        renderLeafletMap();
-      }
+      const acc = Math.round(pos.coords.accuracy || 15);
+      applyUserLiveLocation(lat, lng, acc);
     },
     (err) => {
+      console.warn("Geolocation permission or position error:", err);
       if (btn) btn.innerHTML = `📡 Detect My Live Location (Ask Permission)`;
       if (statusEl) {
         statusEl.style.display = 'block';
-        let msg = "Location permission was denied. Using Richmond Town, Bengaluru.";
-        if (err.code === 1) msg = "Permission denied by user. Using Richmond Town, Bengaluru.";
-        else if (err.code === 2) msg = "Position unavailable. Using Richmond Town, Bengaluru.";
-        else if (err.code === 3) msg = "Location request timed out. Using Richmond Town, Bengaluru.";
+        let msg = "Location permission denied or unavailable. Using default coordinates (Bengaluru Urban).";
+        if (err.code === 1) msg = "Location permission denied by browser. Click to grant.";
+        else if (err.code === 2) msg = "Live GPS signal unavailable. Using default coordinates.";
+        else if (err.code === 3) msg = "Live GPS request timed out.";
         statusEl.innerHTML = `<span style="color: #f59e0b;">⚠️ ${msg}</span>`;
       }
+      if (headerGpsBadge) {
+        headerGpsBadge.style.display = 'inline-flex';
+        headerGpsBadge.innerHTML = `📍 GPS: Bengaluru (Default)`;
+      }
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
   );
 }
 
-// Distance Calculation (Haversine formula + Urban factor)
-function updateHospitalDistancesFromLocation(userLat, userLng) {
-  if (!State.hospitals || State.hospitals.length === 0) return;
-
-  State.hospitals.forEach(h => {
-    const R = 6371; // Earth radius in km
-    const dLat = (h.lat - userLat) * Math.PI / 180;
-    const dLng = (h.lng - userLng) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(userLat * Math.PI / 180) * Math.cos(h.lat * Math.PI / 180) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const rawDist = R * c;
-    h.calculatedDistanceKm = parseFloat((rawDist * 1.32).toFixed(1));
-    h.calculatedEtaMinutes = Math.max(3, Math.round((h.calculatedDistanceKm / 34) * 60 + 2));
-  });
+// Backward compatibility alias for Patient Portal button
+function requestPatientGeolocation() {
+  requestUserLiveLocation(true);
 }
 
 // Real-Time Hospital Telemetry Stream
@@ -1351,39 +1483,51 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
 // PORTAL C: HOSPITAL ED COORDINATOR PORTAL
 // ------------------------------------------
 function renderHospitalPortal() {
-  const hospSelect = document.getElementById('hospital-selector');
-  if (hospSelect && hospSelect.options.length === 0) {
-    State.hospitals.forEach(h => {
-      const opt = document.createElement('option');
-      opt.value = h.id;
-      opt.innerText = h.name;
-      hospSelect.appendChild(opt);
-    });
-    hospSelect.value = State.selectedHospitalId;
+  try {
+    if (!State.hospitals || State.hospitals.length === 0) return;
+
+    const hospSelect = document.getElementById('hospital-selector');
+    if (hospSelect && hospSelect.options.length === 0) {
+      State.hospitals.forEach(h => {
+        const opt = document.createElement('option');
+        opt.value = h.id;
+        opt.innerText = h.name;
+        hospSelect.appendChild(opt);
+      });
+      hospSelect.value = State.selectedHospitalId || State.hospitals[0]?.id;
+    }
+
+    const currentHosp = State.hospitals.find(h => h.id === State.selectedHospitalId) || State.hospitals[0];
+    if (!currentHosp) return;
+
+    // Update Capacity Counters safely
+    const edBeds = document.getElementById('hosp-ed-beds');
+    if (edBeds) edBeds.value = currentHosp.available_ed_beds ?? 0;
+    const icuBeds = document.getElementById('hosp-icu-beds');
+    if (icuBeds) icuBeds.value = currentHosp.available_icu_beds ?? 0;
+    const cathToggle = document.getElementById('hosp-cath-toggle');
+    if (cathToggle) cathToggle.checked = !!currentHosp.cath_lab_available;
+    const strokeToggle = document.getElementById('hosp-stroke-toggle');
+    if (strokeToggle) strokeToggle.checked = !!currentHosp.stroke_unit_available;
+    const divertToggle = document.getElementById('hosp-divert-toggle');
+    if (divertToggle) divertToggle.checked = !!currentHosp.is_diverting;
+
+    // Staleness badge
+    const stalenessEl = document.getElementById('hosp-staleness-badge');
+    if (stalenessEl) {
+      const isStale = (currentHosp.last_updated_minutes_ago || 0) > 15;
+      stalenessEl.innerHTML = `
+        <span class="status-indicator" style="background: ${isStale ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}; color: ${isStale ? '#fde68a' : '#34d399'};">
+          ● Last Verified: ${currentHosp.last_updated_minutes_ago || 0} mins ago ${isStale ? '(UNVERIFIED)' : '(FRESH)'}
+        </span>
+      `;
+    }
+
+    // Render Alert Queue
+    renderHospitalAlertQueue();
+  } catch (err) {
+    console.error("Error in renderHospitalPortal:", err);
   }
-
-  const currentHosp = State.hospitals.find(h => h.id === State.selectedHospitalId) || State.hospitals[0];
-
-  // Update Capacity Counters
-  document.getElementById('hosp-ed-beds').value = currentHosp.available_ed_beds;
-  document.getElementById('hosp-icu-beds').value = currentHosp.available_icu_beds;
-  document.getElementById('hosp-cath-toggle').checked = currentHosp.cath_lab_available;
-  document.getElementById('hosp-stroke-toggle').checked = currentHosp.stroke_unit_available;
-  document.getElementById('hosp-divert-toggle').checked = currentHosp.is_diverting;
-
-  // Staleness badge
-  const stalenessEl = document.getElementById('hosp-staleness-badge');
-  if (stalenessEl) {
-    const isStale = currentHosp.last_updated_minutes_ago > 15;
-    stalenessEl.innerHTML = `
-      <span class="status-indicator" style="background: ${isStale ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}; color: ${isStale ? '#fde68a' : '#34d399'};">
-        ● Last Verified: ${currentHosp.last_updated_minutes_ago} mins ago ${isStale ? '(UNVERIFIED)' : '(FRESH)'}
-      </span>
-    `;
-  }
-
-  // Render Alert Queue
-  renderHospitalAlertQueue();
 }
 
 function onHospitalChange(hospId) {
@@ -1822,8 +1966,9 @@ function renderLeafletMap() {
     leafletMarkersLayer.addLayer(marker);
   });
 
-  // Add Ambient Bengaluru Urban Road Traffic Layer
-  const trafficLayer = [
+  // Add Dynamic Road Traffic Layer (Anchored to local emergency corridors)
+  const isBlr = calculateHaversineKm(ambLoc.lat, ambLoc.lng, 12.9716, 77.5946) <= 45;
+  const trafficLayer = isBlr ? [
     // Clear / Free-Flow Corridors (Green)
     { points: [[12.9550, 77.6050], [12.9580, 77.6010], [12.9640, 77.5960], [12.9716, 77.5946]], color: '#10b981', label: 'Hosur Bypass - Clear (48 km/h)' },
     { points: [[12.9352, 77.6245], [12.9450, 77.6180], [12.9550, 77.6050]], color: '#10b981', label: 'Richmond Arterial - Clear (46 km/h)' },
@@ -1831,6 +1976,12 @@ function renderLeafletMap() {
     { points: [[12.9550, 77.6050], [12.9520, 77.5900], [12.9515, 77.5750]], color: '#f59e0b', label: 'Lalbagh West - Moderate (26 km/h)' },
     // Heavy Traffic / Bottlenecks (Red)
     { points: [[12.9640, 77.6080], [12.9720, 77.6060], [12.9856, 77.6408]], color: '#ef4444', label: 'Central Corridor - Heavy Congestion (8 km/h)' }
+  ] : [
+    // Dynamic user city corridors anchored to user's GPS
+    { points: [[ambLoc.lat, ambLoc.lng], [ambLoc.lat + 0.005, ambLoc.lng - 0.006], [ambLoc.lat + 0.012, ambLoc.lng - 0.008], [targetHospital ? targetHospital.lat : ambLoc.lat + 0.015, targetHospital ? targetHospital.lng : ambLoc.lng - 0.01]], color: '#10b981', label: 'Local Arterial Bypass - Clear (48 km/h)' },
+    { points: [[ambLoc.lat - 0.008, ambLoc.lng + 0.008], [ambLoc.lat - 0.004, ambLoc.lng + 0.004], [ambLoc.lat, ambLoc.lng]], color: '#10b981', label: 'Inbound Sector Transit - Clear (46 km/h)' },
+    { points: [[ambLoc.lat, ambLoc.lng], [ambLoc.lat - 0.003, ambLoc.lng - 0.012], [ambLoc.lat - 0.005, ambLoc.lng - 0.020]], color: '#f59e0b', label: 'Commercial Cross-Road - Moderate (26 km/h)' },
+    { points: [[ambLoc.lat + 0.006, ambLoc.lng + 0.005], [ambLoc.lat + 0.012, ambLoc.lng + 0.008], [ambLoc.lat + 0.018, ambLoc.lng + 0.015]], color: '#ef4444', label: 'Downtown Center - Heavy Congestion (8 km/h)' }
   ];
 
   trafficLayer.forEach(t => {
@@ -1845,15 +1996,15 @@ function renderLeafletMap() {
 
   // Routing Polyline & Navigation Guidance to Target
   if (targetHospital) {
-    const isMetroHeart = targetHospital.id === "HOSP_1";
-    const hasRoadblock = State.activeRoadBlock && isMetroHeart;
+    const isTargetCongested = targetHospital.id === "HOSP_1" || State.hospitals[0]?.id === targetHospital.id;
+    const hasRoadblock = State.activeRoadBlock && isTargetCongested;
     const recItem = State.currentCase.recommendations?.find(r => r.hospital.id === targetHospital.id);
     const etaMin = recItem ? recItem.etaMinutes : (hasRoadblock ? 24 : 9);
 
     if (hasRoadblock) {
-      // Roadblock coordinate along Brigade Rd / Hosur Rd artery
-      const rbLat = 12.9640;
-      const rbLng = 12.9550 > targetHospital.lat ? 77.6000 : 77.5980;
+      // Roadblock coordinate along transit corridor
+      const rbLat = isBlr ? 12.9640 : (ambLoc.lat + (targetHospital.lat - ambLoc.lat) * 0.45);
+      const rbLng = isBlr ? (12.9550 > targetHospital.lat ? 77.6000 : 77.5980) : (ambLoc.lng + (targetHospital.lng - ambLoc.lng) * 0.45);
 
       // Roadblock alert marker
       const rbReason = State.customRoadReason || "Major Road Obstruction";
@@ -1877,19 +2028,19 @@ function renderLeafletMap() {
       leafletRouteLayer.addLayer(blockedLine);
 
       // Recommended Optimal Detour Route (What ambulance SHOULD take)
-      const detourMidLat = ambLoc.lat + 0.008;
-      const detourMidLng = ambLoc.lng - 0.015;
+      const detourMidLat = ambLoc.lat + (targetHospital.lat - ambLoc.lat) * 0.5 + (isBlr ? 0.008 : 0.006);
+      const detourMidLng = ambLoc.lng + (targetHospital.lng - ambLoc.lng) * 0.5 - (isBlr ? 0.015 : 0.010);
       const detourLine = L.polyline([
         [ambLoc.lat, ambLoc.lng],
         [detourMidLat, detourMidLng],
-        [detourMidLat + 0.009, targetHospital.lng - 0.005],
+        [detourMidLat + (isBlr ? 0.009 : 0.004), targetHospital.lng - 0.005],
         [targetHospital.lat, targetHospital.lng]
       ], {
         color: '#10b981', // Highlighted Emerald Green
         weight: 6,
         opacity: 0.95
       });
-      detourLine.bindTooltip(`⚡ RECOMMENDED OPTIMAL ROUTE: Via West End Bypass (ETA: ${etaMin}m | Avoids Gridlock)`, { permanent: true, direction: 'top', className: 'traffic-guide-badge' });
+      detourLine.bindTooltip(`⚡ RECOMMENDED OPTIMAL ROUTE: Via Bypass Corridor (ETA: ${etaMin}m | Avoids Gridlock)`, { permanent: true, direction: 'top', className: 'traffic-guide-badge' });
       leafletRouteLayer.addLayer(detourLine);
 
       // Update Floating Traffic Guide Overlay
@@ -1897,13 +2048,13 @@ function renderLeafletMap() {
       const guideRoute = document.getElementById('traffic-guide-route-text');
       const guideMeta = document.getElementById('traffic-guide-meta');
       if (guideStatus) guideStatus.innerHTML = `🔴 <strong>Heavy Congestion Alert:</strong> ${rbReason} (+${rbDelay}m delay)`;
-      if (guideRoute) guideRoute.innerHTML = `⚡ <strong>Ambulance Navigation:</strong> Take West End Flyover Bypass ➔ Direct to ${targetHospital.name}`;
-      if (guideMeta) guideMeta.innerHTML = `<span>⏱️ <strong>Fastest ETA: ~${etaMin} mins</strong></span><span>🟢 Clear Traffic Flow on Bypass (45 km/h)</span><span style="color: #ef4444;">❌ Avoid Brigade Rd</span>`;
+      if (guideRoute) guideRoute.innerHTML = `⚡ <strong>Ambulance Navigation:</strong> Take Express Bypass Route ➔ Direct to ${targetHospital.name}`;
+      if (guideMeta) guideMeta.innerHTML = `<span>⏱️ <strong>Fastest ETA: ~${etaMin} mins</strong></span><span>🟢 Clear Traffic Flow on Bypass (45 km/h)</span><span style="color: #ef4444;">❌ Avoid Congested Arterial</span>`;
 
     } else {
       // Normal Traffic: Clear recommended optimal fast route vs alternate congested route
       const midLat = (ambLoc.lat + targetHospital.lat) / 2;
-      const midLng = ambLoc.lng - 0.006;
+      const midLng = (ambLoc.lng + targetHospital.lng) / 2 - 0.005;
 
       // Recommended Optimal Route (Highlighted Green)
       const primaryRoute = L.polyline([
@@ -1922,8 +2073,8 @@ function renderLeafletMap() {
       // Slower Congested Route (Dashed Amber/Red)
       const slowRoute = L.polyline([
         [ambLoc.lat, ambLoc.lng],
-        [ambLoc.lat + 0.005, ambLoc.lng + 0.012],
-        [targetHospital.lat, ambLoc.lng + 0.012],
+        [ambLoc.lat + (targetHospital.lat - ambLoc.lat) * 0.3, ambLoc.lng + 0.012],
+        [targetHospital.lat - 0.003, ambLoc.lng + 0.012],
         [targetHospital.lat, targetHospital.lng]
       ], {
         color: '#f59e0b',
@@ -1939,7 +2090,7 @@ function renderLeafletMap() {
       const guideRoute = document.getElementById('traffic-guide-route-text');
       const guideMeta = document.getElementById('traffic-guide-meta');
       if (guideStatus) guideStatus.innerHTML = `🟢 <strong>Live Traffic:</strong> Arterial Green Wave Active (Free Flow: 48 km/h)`;
-      if (guideRoute) guideRoute.innerHTML = `⚡ <strong>Optimal Route:</strong> Richmond Circle Flyover ➔ Hosur Expressway Bypass ➔ ${targetHospital.name}`;
+      if (guideRoute) guideRoute.innerHTML = `⚡ <strong>Optimal Route:</strong> Priority Emergency Corridor ➔ Direct to ${targetHospital.name}`;
       if (guideMeta) guideMeta.innerHTML = `<span>⏱️ <strong>Fastest ETA: ~${etaMin} mins</strong> (Saves ~14 mins vs congested route)</span><span style="color: #f59e0b;">⚠️ Central Artery: Moderate Congestion</span>`;
     }
   }
@@ -2327,6 +2478,9 @@ function authenticateUser(role, userId, name, title, avatar, targetPortal) {
     if (leafletMap) leafletMap.invalidateSize();
     renderMap();
   }, 150);
+
+  // Automatically request live GPS location as soon as user signs into the page
+  requestUserLiveLocation();
 }
 
 function handleLogout() {
@@ -2361,10 +2515,14 @@ function updateHeaderUserBadge() {
 // 6. MEASURABLE EVALUATION SUITE
 // ------------------------------------------
 function renderEvaluationPortal() {
-  if (!State.evalResults) {
-    runBenchmarkEvaluation();
-  } else {
-    updateEvaluationUI(State.evalResults);
+  try {
+    if (!State.evalResults) {
+      runBenchmarkEvaluation();
+    } else {
+      updateEvaluationUI(State.evalResults);
+    }
+  } catch (err) {
+    console.error("Error in renderEvaluationPortal:", err);
   }
 }
 
@@ -2542,28 +2700,32 @@ function updateEvaluationUI(results) {
 // 7. IMMUTABLE AUDIT LOG VIEWER
 // ------------------------------------------
 function renderAuditPortal() {
-  const tableBody = document.getElementById('audit-table-body');
-  if (!tableBody) return;
+  try {
+    const tableBody = document.getElementById('audit-table-body');
+    if (!tableBody) return;
 
-  if (State.auditLog.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No audit events logged yet.</td></tr>`;
-    return;
+    if (!State.auditLog || State.auditLog.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No audit events logged yet.</td></tr>`;
+      return;
+    }
+
+    tableBody.innerHTML = State.auditLog.map(log => `
+      <tr>
+        <td style="font-family: monospace; font-size: 11px;">${log.timestamp}</td>
+        <td><span class="status-indicator" style="font-size: 10px;">${log.portal || 'SYSTEM'}</span></td>
+        <td style="font-weight: 600;">${log.eventType}</td>
+        <td>${log.summary}</td>
+        <td style="color: ${log.humanDecision ? '#fde68a' : 'var(--text-muted)'}; font-size: 12px;">
+          ${log.humanDecision || 'Automated Step'}
+        </td>
+        <td style="font-family: monospace; font-size: 10px; color: var(--text-muted);">
+          ${(log.tamperProofHash || '').substring(0, 16)}...
+        </td>
+      </tr>
+    `).join("");
+  } catch (err) {
+    console.error("Error in renderAuditPortal:", err);
   }
-
-  tableBody.innerHTML = State.auditLog.map(log => `
-    <tr>
-      <td style="font-family: monospace; font-size: 11px;">${log.timestamp}</td>
-      <td><span class="status-indicator" style="font-size: 10px;">${log.portal}</span></td>
-      <td style="font-weight: 600;">${log.eventType}</td>
-      <td>${log.summary}</td>
-      <td style="color: ${log.humanDecision ? '#fde68a' : 'var(--text-muted)'}; font-size: 12px;">
-        ${log.humanDecision || 'Automated Step'}
-      </td>
-      <td style="font-family: monospace; font-size: 10px; color: var(--text-muted);">
-        ${log.tamperProofHash.substring(0, 16)}...
-      </td>
-    </tr>
-  `).join("");
 }
 
 function exportAuditLogJson() {
@@ -2626,6 +2788,7 @@ async function initApp() {
     if (appView) appView.style.display = 'flex';
     updateHeaderUserBadge();
     switchPortal('ambulance');
+    requestUserLiveLocation();
   }
 
   // Window resize re-draws map

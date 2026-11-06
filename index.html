@@ -158,6 +158,12 @@
       </nav>
 
       <div class="header-actions">
+        <!-- Live GPS Indicator -->
+        <div id="header-gps-badge" class="badge-pill" style="display: none; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399; font-size: 11px; cursor: pointer; padding: 4px 10px;" onclick="requestUserLiveLocation(true)" title="Click to re-detect your live GPS location">
+          <span class="realtime-pulse-dot" style="margin-right: 4px;"></span>
+          <span>📍 Live Location</span>
+        </div>
+
         <div class="status-indicator">
           <span class="pulse-dot"></span>
           Multi-Agent Swarm Active
@@ -457,7 +463,6 @@
           </div>
         </div>
 
-        </div>
       </section>
 
       <!-- ======================================================== -->
@@ -577,7 +582,7 @@
                   Current Location: Richmond Town, Bengaluru Urban (12.9550° N, 77.6050° E)
                 </div>
               </div>
-              <button type="button" class="btn btn-primary btn-sm" id="btn-request-location" onclick="requestPatientGeolocation()">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-request-location" onclick="requestUserLiveLocation(true)">
                 📡 Detect My Live Location (Ask Permission)
               </button>
             </div>
