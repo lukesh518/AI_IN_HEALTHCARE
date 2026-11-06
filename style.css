@@ -1205,3 +1205,168 @@ body {
   50% { transform: scale(1.02); box-shadow: 0 0 24px rgba(239, 68, 68, 0.9); }
   100% { transform: scale(1); box-shadow: 0 0 12px rgba(239, 68, 68, 0.5); }
 }
+
+/* ======================================================== */
+/* CORNER MINIMIZED & MAXIMIZED MAP COMPONENT               */
+/* ======================================================== */
+#map-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 29, 0.82);
+  backdrop-filter: blur(8px);
+  z-index: 2050;
+  animation: fadeIn 0.25s ease-out;
+}
+
+#map-backdrop.active {
+  display: block;
+}
+
+#ambulance-map-wrapper.corner-map-minimized {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 380px;
+  height: 270px;
+  z-index: 1000;
+  border-radius: 16px;
+  border: 2px solid #3b82f6;
+  background: #0f172a;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75), 0 0 25px rgba(59, 130, 246, 0.35);
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ambulance-map-wrapper.corner-map-minimized:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: #60a5fa;
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.85), 0 0 35px rgba(59, 130, 246, 0.55);
+}
+
+#ambulance-map-wrapper.corner-map-maximized {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92vw;
+  max-width: 1400px;
+  height: 86vh;
+  z-index: 2100;
+  border-radius: 18px;
+  border: 2px solid #3b82f6;
+  background: #0f172a;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.95), 0 0 50px rgba(59, 130, 246, 0.45);
+  overflow: hidden;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.map-floating-header {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  user-select: none;
+}
+
+.map-floating-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mini-map-expand-pill {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #3b82f6;
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 20px;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+#ambulance-map-wrapper.corner-map-maximized .mini-map-expand-pill {
+  display: none;
+}
+
+/* Patient Location & Realtime Hospital Cards */
+.patient-location-box {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.nearby-hospitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.nearby-hospital-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  transition: all 0.2s ease;
+}
+
+.nearby-hospital-card:hover {
+  border-color: #3b82f6;
+  background: var(--bg-surface-hover);
+}
+
+.realtime-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse-dot 1.8s infinite;
+}
+
+/* Two-column layout when map is docked in corner */
+.grid-ambulance-docked {
+  display: grid;
+  grid-template-columns: 390px 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .grid-ambulance-docked {
+    grid-template-columns: 1fr;
+  }
+  #ambulance-map-wrapper.corner-map-minimized {
+    width: 320px;
+    height: 220px;
+    bottom: 14px;
+    right: 14px;
+  }
+}

@@ -22,94 +22,101 @@
     <div class="login-card">
       <div class="login-brand">
         <div class="login-logo-glow">⚕️</div>
-        <h1 class="login-title">AegisCare Emergency Response</h1>
-        <p class="login-subtitle">Autonomous Clinical Multi-Agent Decision-Support System • India Sector</p>
+        <h1 class="login-title">AegisCare Emergency Medical Portal</h1>
+        <p class="login-subtitle">Smart Emergency Care & Hospital Dispatch System</p>
         <div class="login-badges">
-          <span class="badge-pill">🇮🇳 Ayushman Bharat (ABDM) Compatible</span>
-          <span class="badge-pill">HL7 FHIR v4</span>
-          <span class="badge-pill">DPDP Act 2023 Compliant</span>
+          <span class="badge-pill">🇮🇳 Ayushman Bharat (ABDM)</span>
+          <span class="badge-pill">HL7 FHIR Standard</span>
+          <span class="badge-pill">DPDP Act 2023 Secure</span>
         </div>
       </div>
 
       <form id="login-form" onsubmit="handleLoginSubmit(event)" class="login-form">
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" style="font-weight: 600;">Select Operational Clinical Role:</label>
+        <!-- Step 1: Role Selection in Simple Language -->
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label" style="font-weight: 700; font-size: 13.5px; color: #e2e8f0;">
+            1. Select Who You Are (Your Role):
+          </label>
           <div class="role-grid">
             <div class="role-card active" id="role-ambulance" onclick="selectLoginRole('ambulance', this)">
               <div class="role-icon">🚑</div>
               <div class="role-details">
-                <div class="role-name">Paramedic Fleet Crew</div>
-                <div class="role-desc">Unit 9021 • Mobile ICU Telemetry</div>
+                <div class="role-name">Ambulance Paramedic</div>
+                <div class="role-desc">In ambulance responding to emergencies</div>
               </div>
             </div>
             <div class="role-card" id="role-hospital" onclick="selectLoginRole('hospital', this)">
               <div class="role-icon">🏥</div>
               <div class="role-details">
-                <div class="role-name">Hospital ED Coordinator</div>
-                <div class="role-desc">Metro Heart ED • Resuscitation Bay Lead</div>
+                <div class="role-name">Hospital Doctor / Staff</div>
+                <div class="role-desc">At hospital receiving incoming patients</div>
               </div>
             </div>
             <div class="role-card" id="role-patient" onclick="selectLoginRole('patient', this)">
               <div class="role-icon">👤</div>
               <div class="role-details">
-                <div class="role-name">Citizen / Patient</div>
-                <div class="role-desc">Emergency Symptom Assessment & Guidance</div>
+                <div class="role-name">Patient / Family</div>
+                <div class="role-desc">Check symptoms & find nearby hospitals</div>
               </div>
             </div>
             <div class="role-card" id="role-evaluation" onclick="selectLoginRole('evaluation', this)">
-              <div class="role-icon">🛡️</div>
+              <div class="role-icon">📊</div>
               <div class="role-details">
-                <div class="role-name">Medical Auditor & Ethics</div>
-                <div class="role-desc">Quality Assurance & Cryptographic Audit</div>
+                <div class="role-name">Supervisor / Auditor</div>
+                <div class="role-desc">Review emergency reports & benchmarks</div>
               </div>
             </div>
           </div>
           <input type="hidden" id="selected-role-input" value="ambulance">
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-          <div class="form-group">
-            <label class="form-label" for="login-username">Staff Identifier / ABHA ID:</label>
-            <input type="text" id="login-username" class="form-input" value="AMB-BLR-9021" required
-              placeholder="e.g. AMB-BLR-9021">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="login-password">Access PIN / Password:</label>
-            <input type="password" id="login-password" class="form-input" value="••••••••" required
-              placeholder="Enter Security PIN">
+        <!-- Step 2: Sign-in details with clear labels -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label class="form-label" style="font-weight: 700; font-size: 13.5px; color: #e2e8f0;">
+            2. Sign-In Details:
+          </label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label class="form-label" for="login-username" style="font-size: 11.5px; color: var(--text-secondary);">Username / ID:</label>
+              <input type="text" id="login-username" class="form-input" value="AMB-BLR-9021" required placeholder="Enter ID">
+            </div>
+            <div>
+              <label class="form-label" for="login-password" style="font-size: 11.5px; color: var(--text-secondary);">PIN / Password:</label>
+              <input type="password" id="login-password" class="form-input" value="••••••••" required placeholder="Enter PIN">
+            </div>
           </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 20px;">
-          <label class="form-label" for="login-region">Regional Dispatch Sector (India):</label>
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label class="form-label" for="login-region" style="font-size: 11.5px; color: var(--text-secondary);">City / Regional Sector:</label>
           <select id="login-region" class="form-select">
-            <option value="blr" selected>Bengaluru Urban Emergency Sector (Karnataka, India)</option>
-            <option value="del">Delhi-NCR Central Emergency Trauma Grid</option>
-            <option value="mum">Mumbai Metropolitan Region Trauma Response</option>
-            <option value="all">Integrated National Emergency Health Grid (All-India)</option>
+            <option value="blr" selected>Bengaluru Urban Emergency Sector</option>
+            <option value="del">Delhi-NCR Emergency Sector</option>
+            <option value="mum">Mumbai Metropolitan Region</option>
+            <option value="all">National Emergency Health Grid (All-India)</option>
           </select>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block"
           style="padding: 13px; font-size: 15px; font-weight: 700; width: 100%; justify-content: center; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
-          🔐 Authenticate & Enter Portal
+          🔐 Sign In & Open Portal ➔
         </button>
 
-        <div class="quick-demo-logins">
-          <div class="quick-login-title">⚡ Instant 1-Click Demo Sign-In:</div>
-          <div class="quick-login-buttons">
-            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('ambulance')">🚑
-              Paramedic</button>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('hospital')">🏥 ED Lead</button>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('patient')">👤 Citizen</button>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('evaluation')">🛡️ AI
-              Auditor</button>
+        <!-- Step 3: Instant 1-Click Demo Logins -->
+        <div class="quick-demo-logins" style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+          <div class="quick-login-title" style="font-weight: 700; font-size: 12px; color: #93c5fd; margin-bottom: 8px;">
+            ⚡ Or Enter Instantly with 1 Click (Demo Mode):
+          </div>
+          <div class="quick-login-buttons" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('ambulance')">🚑 Paramedic</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('hospital')">🏥 Hospital ED</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('patient')">👤 Patient</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('evaluation')">📊 Supervisor</button>
           </div>
         </div>
 
-        <div class="login-footer-security">
-          🔒 Encrypted Session with SHA-256 Tamper-Proof Audit Logging. Aligned with India DPDP Act 2023 & HIPAA
-          Security Rule.
+        <div class="login-footer-security" style="margin-top: 14px; text-align: center; font-size: 11px; color: var(--text-muted);">
+          🔒 Safe, Encrypted & Verified Emergency Decision-Support System
         </div>
       </form>
     </div>
@@ -130,7 +137,7 @@
         </div>
       </div>
 
-      <!-- 3 Core Portals + Governance & Evaluation Navigation -->
+      <!-- Navigation Tabs (Responsible AI removed as requested) -->
       <nav class="portal-nav" aria-label="Portal Navigation">
         <button class="nav-tab-btn active" data-portal="ambulance" onclick="switchPortal('ambulance')">
           🚑 Ambulance Portal <span
@@ -147,9 +154,6 @@
         </button>
         <button class="nav-tab-btn" data-portal="audit" onclick="switchPortal('audit')">
           📜 Immutable Audit Log
-        </button>
-        <button class="nav-tab-btn" data-portal="governance" onclick="switchPortal('governance')">
-          🛡️ Responsible AI
         </button>
       </nav>
 
@@ -266,7 +270,7 @@
           </span>
         </div>
 
-        <div class="grid-ambulance">
+        <div class="grid-ambulance-docked">
 
           <!-- Column 1: Paramedic Case Input & Live Telemetry -->
           <div>
@@ -290,15 +294,19 @@
 
               <!-- Case Narrative / Speech Simulation -->
               <div class="form-group">
-                <label class="form-label" for="case-notes-input">Paramedic Clinical Observations (Text / Voice
-                  Input):</label>
+                <label class="form-label" for="case-notes-input">Paramedic Clinical Observations (Text / Voice Input):</label>
                 <textarea id="case-notes-input" class="form-textarea" rows="3"
                   placeholder="Enter clinical observations, onset time, presenting symptoms..."></textarea>
               </div>
 
-              <button class="btn btn-primary btn-full btn-sm" onclick="runAmbulancePipeline()">
-                ⚡ Run Multi-Agent Evaluation
-              </button>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary btn-full btn-sm" onclick="runAmbulancePipeline()">
+                  ⚡ Run Multi-Agent Evaluation
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="toggleMapMaximize(event)" title="Maximise Live Map">
+                  🗺️ Maximise Map (⛶)
+                </button>
+              </div>
             </div>
 
             <!-- Live Telemetry Stream & NEWS2 Gauge -->
@@ -363,68 +371,17 @@
             </div>
           </div>
 
-          <!-- Column 2: Live Geographic Routing Map -->
-          <div>
-            <div class="card" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
-              <div class="card-header" style="margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h2 class="card-title">🗺️ Geographic Routing & Live Fleet Positioning</h2>
-                  <div class="card-subtitle">OpenStreetMap India & Real-Time Emergency Fleet Navigation</div>
-                </div>
-                <!-- Map View Selectors -->
-                <div class="map-view-controls">
-                  <button class="btn btn-sm btn-outline active" id="btn-view-blr" onclick="setMapView('bengaluru')">
-                    📍 Bengaluru Sector
-                  </button>
-                  <button class="btn btn-sm btn-outline" id="btn-view-ind" onclick="setMapView('india')">
-                    🇮🇳 All-India Map
-                  </button>
-                  <button class="btn btn-sm btn-outline" id="btn-map-mode" onclick="toggleMapMode()"
-                    title="Toggle Leaflet OpenStreetMap vs Tactical Vector Map">
-                    🌐 Mode: OSM
-                  </button>
-                </div>
-              </div>
-
-              <div class="map-container" style="flex: 1; min-height: 480px; position: relative;">
-                <div class="map-header">
-                  <div class="map-badge" id="map-status-pill">
-                    🚑 <strong>Ambulance #9021</strong>: En Route • Bengaluru Urban, India
-                  </div>
-                  <div class="map-badge">
-                    🟢 Ready ICU &nbsp; 🟠 Constrained &nbsp; 🔴 Divert / Stale
-                  </div>
-                </div>
-                <div id="leaflet-map"
-                  style="width: 100%; height: 100%; min-height: 480px; border-radius: var(--radius-md);"></div>
-                <canvas id="map-canvas" class="map-canvas" style="display: none;"></canvas>
-
-                <!-- Floating Live Traffic & Route Guidance Overlay -->
-                <div id="map-traffic-guide" class="map-traffic-guide">
-                  <div class="traffic-guide-header">
-                    <span class="traffic-guide-badge">⚡ RECOMMENDED OPTIMAL ROUTE</span>
-                    <span class="traffic-guide-live" id="traffic-guide-status">🟢 Traffic: Clear Flow (48 km/h)</span>
-                  </div>
-                  <div class="traffic-guide-route" id="traffic-guide-route-text">
-                    Ambulance #9021 ➔ Richmond Circle Flyover ➔ Hosur Expressway Bypass (Fastest Route)
-                  </div>
-                  <div class="traffic-guide-meta" id="traffic-guide-meta">
-                    <span>⏱️ <strong>ETA: ~9 mins</strong> (Saves 16 mins vs congested route)</span>
-                    <span style="color: #f87171;">⚠️ Brigade Rd Corridor: Heavy Bottleneck (+18m delay)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Column 3: Top-3 Ranked Recommendations & HITL Validation -->
+          <!-- Column 2: Ranked Recommendations & Destination Dispatch -->
           <div>
             <div class="card">
-              <div class="card-header">
+              <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
                 <div>
-                  <h2 class="card-title">🎯 Ranked Recommendations</h2>
-                  <div class="card-subtitle">Explainable Evidence Cards & Verifier Cross-Checks</div>
+                  <h2 class="card-title">🎯 Hospital Recommendations & Dispatch</h2>
+                  <div class="card-subtitle">AI Multi-Agent Matching & Live Routing</div>
                 </div>
+                <button class="btn btn-secondary btn-sm" onclick="toggleMapMaximize(event)" style="font-weight: 700;">
+                  🗺️ Expand Map (⛶)
+                </button>
               </div>
 
               <!-- Triage Summary Banner -->
@@ -436,6 +393,69 @@
               </div>
             </div>
           </div>
+
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- FLOATING CORNER MINIMIZED & MAXIMIZED MAP WRAPPER        -->
+        <!-- ======================================================== -->
+        <div id="map-backdrop" onclick="toggleMapMaximize(event)"></div>
+        <div id="ambulance-map-wrapper" class="corner-map-minimized" onclick="handleMapWrapperClick(event)">
+          <div class="map-floating-header">
+            <div class="map-floating-title">
+              <span class="realtime-pulse-dot"></span>
+              <span id="map-floating-heading">🗺️ Live Fleet Radar</span>
+            </div>
+            <div class="map-header-buttons" style="display: flex; gap: 6px; align-items: center;">
+              <div id="maximized-controls-group" style="display: none; gap: 6px;">
+                <button class="btn btn-sm btn-outline active" id="btn-view-blr" onclick="event.stopPropagation(); setMapView('bengaluru')">
+                  📍 Bengaluru Sector
+                </button>
+                <button class="btn btn-sm btn-outline" id="btn-view-ind" onclick="event.stopPropagation(); setMapView('india')">
+                  🇮🇳 All-India Map
+                </button>
+                <button class="btn btn-sm btn-outline" id="btn-map-mode" onclick="event.stopPropagation(); toggleMapMode()">
+                  🌐 Mode: OSM
+                </button>
+              </div>
+              <button class="btn btn-sm btn-primary" id="btn-toggle-map-size" onclick="toggleMapMaximize(event)" style="padding: 4px 10px; font-size: 11.5px; font-weight: 700;">
+                <span id="map-toggle-icon">⛶</span> <span id="map-toggle-text">Maximise</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="map-container" style="flex: 1; height: 100%; position: relative; overflow: hidden;">
+            <div class="map-header" id="map-inner-header" style="display: none;">
+              <div class="map-badge" id="map-status-pill">
+                🚑 <strong>Ambulance #9021</strong>: En Route • Bengaluru Urban, India
+              </div>
+              <div class="map-badge">
+                🟢 Ready ICU &nbsp; 🟠 Constrained &nbsp; 🔴 Divert / Stale
+              </div>
+            </div>
+            <div id="leaflet-map" style="width: 100%; height: 100%; min-height: 190px; border-radius: 0;"></div>
+            <canvas id="map-canvas" class="map-canvas" style="display: none;"></canvas>
+
+            <!-- Floating Live Traffic & Route Guidance Overlay -->
+            <div id="map-traffic-guide" class="map-traffic-guide">
+              <div class="traffic-guide-header">
+                <span class="traffic-guide-badge">⚡ RECOMMENDED OPTIMAL ROUTE</span>
+                <span class="traffic-guide-live" id="traffic-guide-status">🟢 Traffic: Clear Flow (48 km/h)</span>
+              </div>
+              <div class="traffic-guide-route" id="traffic-guide-route-text">
+                Ambulance #9021 ➔ Richmond Circle Flyover ➔ Hosur Expressway Bypass
+              </div>
+              <div class="traffic-guide-meta" id="traffic-guide-meta">
+                <span>⏱️ <strong>ETA: ~9 mins</strong> (Saves 16 mins vs congested route)</span>
+                <span style="color: #f87171;">⚠️ Brigade Rd Corridor: Heavy Bottleneck (+18m delay)</span>
+              </div>
+            </div>
+
+            <div class="mini-map-expand-pill">
+              <span>⛶ Click map to maximise</span>
+            </div>
+          </div>
+        </div>
 
         </div>
       </section>
@@ -536,14 +556,32 @@
       <!-- PORTAL 3: PATIENT PORTAL (LIGHTWEIGHT TRIAGE)            -->
       <!-- ======================================================== -->
       <section id="panel-patient" class="portal-panel">
-        <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <div class="card" style="max-width: 860px; margin: 0 auto;">
           <div class="card-header">
             <div>
               <h2 class="card-title">👤 Patient Triage & Guidance Portal</h2>
-              <div class="card-subtitle">Non-Emergency Guidance, Urgency Classification & Red-Flag Safety Escalation
-              </div>
+              <div class="card-subtitle">AI Symptom Analysis, Realtime Nearby Hospitals & Live Location Detection</div>
             </div>
-            <span class="status-indicator">Strictly Non-Emergency</span>
+            <span class="status-indicator">Emergency Decision Support</span>
+          </div>
+
+          <!-- Live GPS Location Check (With User Permission) -->
+          <div class="patient-location-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <div style="font-weight: 700; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>📍 Your Emergency Location</span>
+                  <span class="realtime-pulse-dot"></span>
+                </div>
+                <div id="patient-location-display" style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                  Current Location: Richmond Town, Bengaluru Urban (12.9550° N, 77.6050° E)
+                </div>
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-request-location" onclick="requestPatientGeolocation()">
+                📡 Detect My Live Location (Ask Permission)
+              </button>
+            </div>
+            <div id="location-permission-status" style="display: none; margin-top: 8px; font-size: 12px;"></div>
           </div>
 
           <!-- Patient Demographics & Onset Timing -->
@@ -569,12 +607,9 @@
           <div class="form-group">
             <label class="form-label">Common Symptom Presets:</label>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('chest_pain')">Chest Pain (Red
-                Flag)</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('stroke')">Facial Droop / Speech (Red
-                Flag)</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('headache')">Mild Headache
-                (Routine)</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('chest_pain')">Chest Pain (Red Flag)</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('stroke')">Facial Droop / Speech (Red Flag)</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('headache')">Mild Headache (Routine)</button>
               <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('rash')">Skin Rash (Routine)</button>
             </div>
           </div>
@@ -596,6 +631,25 @@
 
           <!-- Result Box -->
           <div id="patient-triage-result" style="display: none;"></div>
+
+          <!-- Realtime Nearby Hospitals with Live Telemetry -->
+          <div id="patient-nearby-hospitals-section" style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <h3 style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                <span>🏥 Realtime Nearby Emergency Hospitals</span>
+                <span class="badge-pill" style="font-size: 10px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+                  <span class="realtime-pulse-dot"></span> Live Telemetry Active
+                </span>
+              </h3>
+              <span id="hospital-stream-timestamp" style="font-size: 11px; color: var(--text-muted);">
+                ● Live updates streaming
+              </span>
+            </div>
+            <div id="patient-nearby-hospitals-list" class="nearby-hospitals-grid">
+              <!-- Dynamically populated with realtime hospital distances & beds -->
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -703,89 +757,6 @@
                 <!-- Dynamically populated by app.js -->
               </tbody>
             </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ======================================================== -->
-      <!-- PORTAL 6: RESPONSIBLE AI, ETHICS & SAFETY ARCHITECTURE   -->
-      <!-- ======================================================== -->
-      <section id="panel-governance" class="portal-panel">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">🛡️ Responsible AI, Privacy & Safety Architecture</h2>
-              <div class="card-subtitle">Compliance with Domain 1 Guidelines, DPDP Act 2023, and HIPAA Standards</div>
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div
-              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
-              <h3 style="font-size: 14px; font-weight: 700; color: #60a5fa; margin-bottom: 8px;">🔒 Data Minimization &
-                Privacy Protection</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                In accordance with <strong>India's DPDP Act 2023</strong> and <strong>HIPAA Privacy Norms</strong>,
-                pre-arrival hospital alerts contain strictly clinical and logistical parameters:
-              </p>
-              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
-                <li><strong>Zero PII Transmitted:</strong> Patient name, national ID, age, gender, address, and
-                  insurance info are never shared with prospective facilities.</li>
-                <li><strong>Transmitted Payload:</strong> Acuity category, NEWS2 deterioration score, driving ETA, and
-                  required clinical capabilities (e.g. Cath Lab, Blood Bank).</li>
-                <li><strong>Role-Based Access Control:</strong> Paramedics only access the active encounter; hospitals
-                  only view pre-arrival packets specifically dispatched to them.</li>
-              </ul>
-            </div>
-
-            <div
-              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
-              <h3 style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 8px;">🛡️ Deterministic
-                Clinical Safeguards & HITL</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                The AI operates purely as an <em>explainable decision-support agent</em> and never makes autonomous
-                clinical interventions:
-              </p>
-              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
-                <li><strong>Hard Red-Flag Rules:</strong> Deterministic overrides bypass probabilistic uncertainty when
-                  acute patterns (e.g., crushing chest pain, FAST stroke symptoms) appear.</li>
-                <li><strong>Adversarial Verifier Agent:</strong> Intercepts hallucinations or resource mismatches (e.g.
-                  preventing dispatch to a facility with 0 ICU beds).</li>
-                <li><strong>Mandatory Human Validation:</strong> Paramedics must accept or override recommendations; all
-                  overrides mandate a logged clinical rationale.</li>
-              </ul>
-            </div>
-
-            <div
-              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
-              <h3 style="font-size: 14px; font-weight: 700; color: #f59e0b; margin-bottom: 8px;">⚖️ Algorithmic Fairness
-                & Bias Audits</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                The multi-agent system is evaluated across diverse synthetic demographic strata to prevent disparity:
-              </p>
-              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
-                <li><strong>Equal Acuity Sensitivity:</strong> Triage sensitivity is calibrated identically across age
-                  brackets and genders to avoid under-triaging atypical presentations (e.g., female myocardial
-                  infarction symptoms).</li>
-                <li><strong>Geographic Parity:</strong> Proximity routing incorporates real-time congestion models
-                  rather than favoring affluent metropolitan hospital zones.</li>
-              </ul>
-            </div>
-
-            <div
-              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
-              <h3 style="font-size: 14px; font-weight: 700; color: #f87171; margin-bottom: 8px;">⚠️ Explicit Real-World
-                Limitations</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                Honest disclosure of constraints required by healthcare research standards:
-              </p>
-              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
-                <li><strong>Synthetic Data Origin:</strong> All evaluations use synthetic patient models (Synthea
-                  baseline). The system has not undergone clinical regulatory clearance (e.g. FDA / CDSCO).</li>
-                <li><strong>Hospital Telemetry Dependency:</strong> Re-routing accuracy is contingent on emergency
-                  departments maintaining active, low-staleness telemetry feeds.</li>
-              </ul>
-            </div>
           </div>
         </div>
       </section>

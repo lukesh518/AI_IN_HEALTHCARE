@@ -16,7 +16,12 @@ const State = {
   currentUser: null, // null (shows login page) or { role, userId, name, title, avatar }
 
   // Active Navigation
-  activePortal: 'ambulance', // 'patient' | 'ambulance' | 'hospital' | 'evaluation' | 'audit' | 'governance'
+  activePortal: 'ambulance', // 'patient' | 'ambulance' | 'hospital' | 'evaluation' | 'audit'
+
+  // Map Minimization & Floating Mode (starts minimized in corner)
+  isMapMaximized: false,
+  patientLocation: null,
+  telemetryTimer: null,
 
   // Geographic Map Mode & View
   activeMapView: 'bengaluru', // 'bengaluru' (Urban Regional Dispatch) | 'india' (All-India Emergency Grid)
@@ -71,34 +76,34 @@ const State = {
   evalResults: null
 };
 
-// Available Clinical Roles for AegisCare Authentication
+// Available Roles for AegisCare Authentication
 const ROLES = {
   ambulance: {
     defaultId: "AMB-BLR-9021",
     defaultName: "Paramedic Vikram Sharma",
-    title: "Unit #9021 • Bengaluru Central",
+    title: "Unit #9021 • Ambulance Fleet",
     avatar: "🚑",
     targetPortal: "ambulance"
   },
   hospital: {
     defaultId: "ED-BLR-METRO",
     defaultName: "Dr. Ananya Roy (ED Lead)",
-    title: "Metro Heart ED Lead • Bengaluru",
+    title: "Metro Heart ED Lead • Hospital Staff",
     avatar: "🏥",
     targetPortal: "hospital"
   },
   patient: {
-    defaultId: "ABHA-91-8842-1928",
-    defaultName: "Aarav Mehta (Citizen)",
-    title: "Citizen Patient • Bengaluru Sector",
+    defaultId: "CITIZEN-BLR-704",
+    defaultName: "Aarav Mehta",
+    title: "Citizen Patient • Emergency Triage",
     avatar: "👤",
     targetPortal: "patient"
   },
   evaluation: {
-    defaultId: "AUDIT-NHA-042",
+    defaultId: "SUPERVISOR-BLR-01",
     defaultName: "Dr. K. S. Murthy",
-    title: "Clinical AI Auditor • National Health Grid",
-    avatar: "🛡️",
+    title: "Medical Supervisor & Quality Auditor",
+    avatar: "📊",
     targetPortal: "evaluation"
   }
 };
@@ -525,21 +530,249 @@ function switchPortal(portalId) {
     panel.classList.toggle('active', panel.id === `panel-${portalId}`);
   });
 
+  const mapWrapper = document.getElementById('ambulance-map-wrapper');
+  if (mapWrapper) {
+    mapWrapper.style.display = (portalId === 'ambulance') ? 'flex' : 'none';
+  }
+
   if (portalId === 'ambulance') {
     renderAmbulancePortal();
     setTimeout(() => {
       if (leafletMap) leafletMap.invalidateSize();
       renderMap();
-    }, 100);
+    }, 150);
+  }
+  if (portalId === 'patient') {
+    renderPatientNearbyHospitals();
   }
   if (portalId === 'hospital') renderHospitalPortal();
   if (portalId === 'evaluation') renderEvaluationPortal();
   if (portalId === 'audit') renderAuditPortal();
 }
 
+// Map Maximization / Minimization Controller
+function toggleMapMaximize(event) {
+  if (event) event.stopPropagation();
+  const wrapper = document.getElementById('ambulance-map-wrapper');
+  const backdrop = document.getElementById('map-backdrop');
+  const toggleText = document.getElementById('map-toggle-text');
+  const toggleIcon = document.getElementById('map-toggle-icon');
+  const maxControls = document.getElementById('maximized-controls-group');
+  const innerHeader = document.getElementById('map-inner-header');
+  const heading = document.getElementById('map-floating-heading');
+
+  if (!wrapper) return;
+
+  State.isMapMaximized = !State.isMapMaximized;
+
+  if (State.isMapMaximized) {
+    wrapper.classList.remove('corner-map-minimized');
+    wrapper.classList.add('corner-map-maximized');
+    if (backdrop) backdrop.classList.add('active');
+    if (toggleText) toggleText.innerText = "Minimise";
+    if (toggleIcon) toggleIcon.innerText = "🗗";
+    if (maxControls) maxControls.style.display = "flex";
+    if (innerHeader) innerHeader.style.display = "flex";
+    if (heading) heading.innerText = "🗺️ Geographic Fleet Navigation (Maximized View)";
+  } else {
+    wrapper.classList.remove('corner-map-maximized');
+    wrapper.classList.add('corner-map-minimized');
+    if (backdrop) backdrop.classList.remove('active');
+    if (toggleText) toggleText.innerText = "Maximise";
+    if (toggleIcon) toggleIcon.innerText = "⛶";
+    if (maxControls) maxControls.style.display = "none";
+    if (innerHeader) innerHeader.style.display = "none";
+    if (heading) heading.innerText = "🗺️ Live Fleet Radar";
+  }
+
+  // Refresh Leaflet size smoothly
+  setTimeout(() => {
+    if (leafletMap) {
+      leafletMap.invalidateSize();
+      const ambLoc = State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
+      leafletMap.setView([ambLoc.lat, ambLoc.lng]);
+    }
+    renderMap();
+  }, 220);
+}
+
+function handleMapWrapperClick(event) {
+  if (!State.isMapMaximized) {
+    if (event.target.closest('button')) return;
+    toggleMapMaximize(event);
+  }
+}
+
 // ------------------------------------------
-// PORTAL A: PATIENT PORTAL
+// PORTAL A: PATIENT PORTAL & REALTIME LOCATION
 // ------------------------------------------
+
+// Geolocation with Explicit User Permission
+function requestPatientGeolocation() {
+  const statusEl = document.getElementById('location-permission-status');
+  const displayEl = document.getElementById('patient-location-display');
+  const btn = document.getElementById('btn-request-location');
+
+  if (!navigator.geolocation) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `<span style="color: #f87171;">⚠️ Geolocation is not supported by your browser.</span>`;
+    }
+    return;
+  }
+
+  if (btn) btn.innerHTML = `⏳ Asking Permission...`;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const acc = Math.round(pos.coords.accuracy);
+
+      State.patientLocation = { lat, lng, isUserGPS: true, accuracy: acc };
+      State.currentCase.location = { lat, lng, name: `Patient Live GPS (±${acc}m accuracy)` };
+
+      if (displayEl) {
+        displayEl.innerHTML = `
+          <strong style="color: #34d399;">✅ Live Location Detected:</strong> ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E (±${acc}m accuracy)
+        `;
+      }
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = `<span style="color: #34d399;">✓ Location permission granted. Realtime nearby hospital distances & ETAs updated.</span>`;
+      }
+      if (btn) {
+        btn.innerHTML = `✅ Location Locked`;
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+      }
+
+      // Update real hospital distances from this user's location
+      updateHospitalDistancesFromLocation(lat, lng);
+      renderPatientNearbyHospitals();
+      if (leafletMap) {
+        leafletMap.setView([lat, lng], 13);
+        renderLeafletMap();
+      }
+    },
+    (err) => {
+      if (btn) btn.innerHTML = `📡 Detect My Live Location (Ask Permission)`;
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        let msg = "Location permission was denied. Using Richmond Town, Bengaluru.";
+        if (err.code === 1) msg = "Permission denied by user. Using Richmond Town, Bengaluru.";
+        else if (err.code === 2) msg = "Position unavailable. Using Richmond Town, Bengaluru.";
+        else if (err.code === 3) msg = "Location request timed out. Using Richmond Town, Bengaluru.";
+        statusEl.innerHTML = `<span style="color: #f59e0b;">⚠️ ${msg}</span>`;
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+// Distance Calculation (Haversine formula + Urban factor)
+function updateHospitalDistancesFromLocation(userLat, userLng) {
+  if (!State.hospitals || State.hospitals.length === 0) return;
+
+  State.hospitals.forEach(h => {
+    const R = 6371; // Earth radius in km
+    const dLat = (h.lat - userLat) * Math.PI / 180;
+    const dLng = (h.lng - userLng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(userLat * Math.PI / 180) * Math.cos(h.lat * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const rawDist = R * c;
+    h.calculatedDistanceKm = parseFloat((rawDist * 1.32).toFixed(1));
+    h.calculatedEtaMinutes = Math.max(3, Math.round((h.calculatedDistanceKm / 34) * 60 + 2));
+  });
+}
+
+// Real-Time Hospital Telemetry Stream
+function startRealtimeHospitalStream() {
+  if (State.telemetryTimer) clearInterval(State.telemetryTimer);
+
+  State.telemetryTimer = setInterval(() => {
+    if (State.hospitals && State.hospitals.length > 0) {
+      const randomIdx = Math.floor(Math.random() * State.hospitals.length);
+      const targetH = State.hospitals[randomIdx];
+      const delta = (Math.random() > 0.5 ? 1 : -1);
+
+      if (targetH.available_icu_beds + delta >= 0 && targetH.available_icu_beds + delta <= targetH.total_icu_beds) {
+        targetH.available_icu_beds += delta;
+      }
+      targetH.last_updated_minutes_ago = 0;
+
+      if (State.activePortal === 'patient') {
+        renderPatientNearbyHospitals();
+      }
+      const streamTime = document.getElementById('hospital-stream-timestamp');
+      if (streamTime) {
+        streamTime.innerHTML = `● Live updates: ${new Date().toLocaleTimeString()}`;
+      }
+    }
+  }, 10000);
+}
+
+// Render Real-Time Nearby Emergency Hospitals in Patient Portal
+function renderPatientNearbyHospitals() {
+  const container = document.getElementById('patient-nearby-hospitals-list');
+  if (!container || !State.hospitals || State.hospitals.length === 0) return;
+
+  const loc = State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
+  updateHospitalDistancesFromLocation(loc.lat, loc.lng);
+
+  const sorted = [...State.hospitals].sort((a, b) => (a.calculatedDistanceKm || 99) - (b.calculatedDistanceKm || 99));
+
+  container.innerHTML = sorted.map((h, i) => {
+    const isReady = h.available_icu_beds > 0 && !h.is_diverting;
+    return `
+      <div class="nearby-hospital-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <div>
+            <span style="font-size: 10px; font-weight: 700; background: rgba(59, 130, 246, 0.15); color: #93c5fd; padding: 2px 6px; border-radius: 4px;">
+              #${i + 1} NEARBY
+            </span>
+            <h4 style="font-size: 13.5px; font-weight: 700; color: #fff; margin-top: 4px;">${h.name}</h4>
+            <div style="font-size: 11px; color: var(--text-secondary);">📍 ${h.address}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 15px; font-weight: 800; color: #34d399;">~${h.calculatedEtaMinutes || 8}m</div>
+            <div style="font-size: 10px; color: var(--text-muted);">${h.calculatedDistanceKm || 3.2} km</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; font-size: 11px;">
+          <span class="evidence-tag ${h.available_icu_beds > 0 ? 'good' : 'warning'}">
+            🛏️ ICU: ${h.available_icu_beds}/${h.total_icu_beds} Free
+          </span>
+          <span class="evidence-tag ${h.available_ed_beds > 0 ? 'good' : 'warning'}">
+            🏥 ED: ${h.available_ed_beds} Beds
+          </span>
+          ${h.has_cath_lab ? `<span class="evidence-tag good">🔬 Cath Lab</span>` : ''}
+          ${h.has_stroke_unit ? `<span class="evidence-tag good">🧠 Stroke Unit</span>` : ''}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 8px; margin-top: 6px;">
+          <span style="color: ${isReady ? '#34d399' : '#f87171'}; font-weight: 600;">
+            ${isReady ? '● Resuscitation Bay Ready' : '● Divert / At Capacity'}
+          </span>
+          <button class="btn btn-sm btn-outline" style="font-size: 10.5px; padding: 3px 8px;" onclick="routeAmbulanceToDirectly('${h.id}')">
+            Route Here ➔
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function routeAmbulanceToDirectly(hospitalId) {
+  State.currentCase.selectedHospitalId = hospitalId;
+  State.currentCase.isAccepted = true;
+  switchPortal('ambulance');
+  acceptRecommendation(hospitalId);
+}
+
 function analyzePatientSymptoms() {
   const text = document.getElementById('patient-symptoms-input')?.value;
   if (!text || text.trim() === "") {
@@ -563,7 +796,7 @@ function analyzePatientSymptoms() {
 
   const triage = TriageAgent.evaluate(text, syntheticVitals);
 
-  // Age-adjusted clinical weighting: age >= 50 with acute cardiopulmonary or neurological signs
+  // Age-adjusted clinical weighting
   if (patientAge >= 50 && (lower.includes("chest") || lower.includes("jaw") || lower.includes("arm") || lower.includes("breathless"))) {
     if (!triage.redFlags.includes("Suspected Acute Coronary Syndrome / STEMI")) {
       triage.redFlags.push("Suspected Acute Coronary Syndrome in High-Risk Age Group (>50y)");
@@ -577,49 +810,55 @@ function analyzePatientSymptoms() {
     // Problem is too severe -> Auto-select most efficient hospital and assign first priority to ambulance!
     autoDispatchPriorityAmbulance(text, patientAge, onsetText, triage);
   } else {
-    // Non-emergency standard guidance
+    // Clear, structured AI explanation for the patient
     const resultContainer = document.getElementById('patient-triage-result');
     resultContainer.style.display = 'block';
+
+    const loc = State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
+    updateHospitalDistancesFromLocation(loc.lat, loc.lng);
+    const nearestHosp = State.hospitals[0] || { name: "St. Jude Community Hospital", calculatedEtaMinutes: 8, calculatedDistanceKm: 2.4 };
+
     resultContainer.innerHTML = `
-      <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px; margin-top: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span class="status-indicator" style="background: rgba(16,185,129,0.2); color: #34d399; border-color: #10b981; font-weight: 700;">
-            URGENCY: ${triage.urgency.toUpperCase()}
+      <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: var(--radius-lg); padding: 20px; margin-top: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <span class="status-indicator" style="background: rgba(16,185,129,0.2); color: #34d399; border-color: #10b981; font-weight: 800; font-size: 12px;">
+            ✅ TRIAGE RESULT: ${triage.urgency.toUpperCase()}
           </span>
           <span style="font-size: 12px; color: var(--text-secondary);">
-            Model Confidence: <strong>${Math.round(triage.confidence * 100)}%</strong>
+            AI Confidence: <strong>${Math.round(triage.confidence * 100)}%</strong>
           </span>
         </div>
 
-        <div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">
-          👤 Patient Age: <strong>${patientAge} yrs</strong> | ⏱️ Onset: <strong>${onsetText}</strong>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 12px;">
+          <div>👤 Patient Age: <strong style="color: #fff;">${patientAge} yrs</strong></div>
+          <div>⏱️ Symptom Onset: <strong style="color: #fde68a;">${onsetText}</strong></div>
+          <div>🩺 Acuity: <strong style="color: #60a5fa;">${triage.category}</strong></div>
         </div>
 
-        <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: #fff;">
-          Recommended Care Level: ${triage.requiredSpecialty}
-        </h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
-          Clinical Classification: <strong>${triage.category}</strong> (Non-Emergency / Routine Presentation)
-        </p>
-
-        <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px;">
-          <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">
-            Suggested Nearby Outpatient Facilities & Next Walk-in Slots:
-          </div>
-          <div class="grid-2">
-            <div style="background: var(--bg-surface-elevated); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-              <div style="font-weight: 700; color: white;">St. Jude Community Hospital</div>
-              <div style="font-size: 11px; color: #34d399;">● Next Available OPD: Today, 3:15 PM</div>
-            </div>
-            <div style="background: var(--bg-surface-elevated); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-              <div style="font-weight: 700; color: white;">Green Valley Outpatient Clinic</div>
-              <div style="font-size: 11px; color: #34d399;">● Next Available OPD: Today, 2:45 PM</div>
-            </div>
-          </div>
+        <div style="margin-bottom: 14px;">
+          <h4 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+            🔍 What the AI Checked & Detected:
+          </h4>
+          <ul style="font-size: 12.5px; color: var(--text-secondary); margin-left: 20px; line-height: 1.6;">
+            <li><strong>Symptom Pattern:</strong> Mild to moderate presentation without immediate life-threatening compromise.</li>
+            <li><strong>Care Recommendation:</strong> ${triage.requiredSpecialty} consultation recommended within the next 2-4 hours.</li>
+            <li><strong>Immediate Advice:</strong> Rest comfortably, stay hydrated, and do not perform strenuous activities.</li>
+          </ul>
         </div>
 
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 14px; text-align: center;">
-          ⚖️ Decision support notification only, not medical diagnosis. If symptoms worsen, call 112 / 911 immediately.
+        <div style="border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <div style="font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 6px;">
+            🏥 Closest Recommended Facility from Your Location:
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-elevated); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <div>
+              <div style="font-weight: 700; color: #fff; font-size: 13.5px;">${nearestHosp.name}</div>
+              <div style="font-size: 11.5px; color: var(--text-secondary);">📍 ${nearestHosp.address} • Driving time: ~${nearestHosp.calculatedEtaMinutes || 8} mins (${nearestHosp.calculatedDistanceKm || 2.4} km)</div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="routeAmbulanceToDirectly('${nearestHosp.id}')">
+              Route Ambulance ➔
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -630,6 +869,8 @@ function analyzePatientSymptoms() {
       onset: onsetText,
       triage
     });
+
+    renderPatientNearbyHospitals();
   }
 }
 
@@ -873,7 +1114,7 @@ function renderTriageSummaryBadge(triage) {
   `;
 }
 
-function renderRecommendationsList(rankedResults) {
+function renderRecommendationsList(rankedResults, focusSelected = true) {
   const container = document.getElementById('recommendations-container');
   if (!container) return;
 
@@ -882,22 +1123,82 @@ function renderRecommendationsList(rankedResults) {
     return;
   }
 
-  let html = "";
-  // Show Top 3
-  const top3 = rankedResults.slice(0, 3);
+  const selectedHospId = State.currentCase.selectedHospitalId;
+  const isAccepted = State.currentCase.isAccepted;
 
+  // 1. If a destination is actively selected, show a focused En-Route card without unnecessary clutter
+  if (selectedHospId && isAccepted && focusSelected) {
+    const selectedItem = rankedResults.find(r => r.hospital.id === selectedHospId) || rankedResults[0];
+    const hosp = selectedItem.hospital;
+
+    container.innerHTML = `
+      <div class="hospital-rec-card top-choice" style="border: 2px solid #10b981; background: rgba(16, 185, 129, 0.08); box-shadow: 0 0 25px rgba(16, 185, 129, 0.25); padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <span class="rec-rank-badge" style="background: #10b981; color: #022c22; font-weight: 800; font-size: 11px;">
+              ✓ ACTIVE TARGET DESTINATION (ROUTE LOCKED)
+            </span>
+            <h3 class="hospital-rec-title" style="font-size: 18px; margin-top: 6px; color: #fff;">${hosp.name}</h3>
+            <div class="hospital-rec-address">📍 ${hosp.address} (${hosp.type})</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 22px; font-weight: 800; color: #34d399;">
+              ${Math.round(selectedItem.matchScore * 100)}%
+            </div>
+            <div style="font-size: 10px; color: var(--text-muted);">Match Index</div>
+          </div>
+        </div>
+
+        <div class="evidence-tags-row" style="margin: 12px 0;">
+          <span class="evidence-tag good" style="font-size: 12px; font-weight: 700;">⏱️ ${selectedItem.etaMinutes} min ETA (${selectedItem.distanceKm} km)</span>
+          <span class="evidence-tag ${hosp.available_icu_beds > 0 ? 'good' : 'warning'}">
+            🛏️ ICU: ${hosp.available_icu_beds}/${hosp.total_icu_beds} Free
+          </span>
+          <span class="evidence-tag ${hosp.has_cath_lab ? (hosp.cath_lab_available ? 'good' : 'warning') : ''}">
+            🔬 Cath Lab: ${hosp.has_cath_lab ? (hosp.cath_lab_available ? 'Ready' : 'Occupied') : 'None'}
+          </span>
+          <span class="evidence-tag highlight">
+            👨‍⚕️ Specialist: ${selectedItem.specialistName} (On Duty)
+          </span>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #a7f3d0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span>🟢 <strong>Ambulance Route Locked:</strong> Direct navigation corridor highlighted on map.</span>
+          <span style="font-weight: 700; color: #6ee7b7;">Pre-Arrival ED Alert Transmitted</span>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-sm" onclick="toggleMapMaximize(event)" style="font-weight: 700;">
+            🗺️ Maximise Live Map View (⛶)
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="renderRecommendationsList(State.currentCase.recommendations, false)">
+            🔄 Choose Another Hospital
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // 2. Otherwise render candidate facilities clearly without unnecessary clutter
+  let html = `
+    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">
+      Click any facility below to <strong>automatically reroute</strong> the ambulance:
+    </div>
+  `;
+
+  const top3 = rankedResults.slice(0, 3);
   top3.forEach((item, index) => {
     const hosp = item.hospital;
     const isTopChoice = index === 0;
-    const isSelected = State.currentCase.selectedHospitalId === hosp.id;
-    const hasConflicts = item.verification.conflicts.length > 0;
+    const isSelected = selectedHospId === hosp.id;
 
     html += `
-      <div class="hospital-rec-card ${isTopChoice ? 'top-choice' : ''}" style="${isSelected ? 'outline: 2px solid #3b82f6;' : ''}">
+      <div class="hospital-rec-card ${isTopChoice ? 'top-choice' : ''}" style="${isSelected ? 'outline: 2px solid #10b981; background: rgba(16,185,129,0.05);' : ''} margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <span class="rec-rank-badge" style="${isTopChoice ? '' : 'background: rgba(255,255,255,0.08); color: var(--text-secondary);'}">
-              ${isTopChoice ? '🏆 RECOMMENDED (#1)' : `#${index + 1} ALTERNATIVE`}
+              ${isTopChoice ? '🏆 RECOMMENDED (#1)' : `#${index + 1} ALTERNATE`}
             </span>
             <h4 class="hospital-rec-title">${hosp.name}</h4>
             <div class="hospital-rec-address">📍 ${hosp.address} (${hosp.type})</div>
@@ -910,90 +1211,52 @@ function renderRecommendationsList(rankedResults) {
           </div>
         </div>
 
-        <!-- Evidence Tags -->
-        <div class="evidence-tags-row">
+        <div class="evidence-tags-row" style="margin: 8px 0;">
           <span class="evidence-tag good">⏱️ ${item.etaMinutes} min ETA (${item.distanceKm} km)</span>
           <span class="evidence-tag ${hosp.available_icu_beds > 0 ? 'good' : 'warning'}">
             🛏️ ICU: ${hosp.available_icu_beds}/${hosp.total_icu_beds} free
           </span>
           <span class="evidence-tag ${hosp.has_cath_lab ? (hosp.cath_lab_available ? 'good' : 'warning') : ''}">
-            🔬 Cath Lab: ${hosp.has_cath_lab ? (hosp.cath_lab_available ? 'Available' : 'Occupied') : 'None'}
+            🔬 Cath Lab: ${hosp.has_cath_lab ? (hosp.cath_lab_available ? 'Ready' : 'Occupied') : 'None'}
           </span>
           <span class="evidence-tag highlight">
             👨‍⚕️ Specialist: ${item.specialistName}
           </span>
-          ${item.isDelayed ? `<span class="evidence-tag" style="background: rgba(239,68,68,0.2); color: #f87171;">⚠️ ${item.delayReason}</span>` : ''}
-          ${hosp.last_updated_minutes_ago > 15 ? `<span class="evidence-tag" style="background: rgba(245,158,11,0.2); color: #fde68a;">⏳ Data Unverified (${hosp.last_updated_minutes_ago}m)</span>` : ''}
         </div>
 
-        <!-- Verifier Agent Sanity Check Banner -->
-        ${hasConflicts ? `
-          <div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-sm); padding: 6px 10px; margin-bottom: 10px; font-size: 11px; color: #fca5a5;">
-            🛡️ <strong>Verifier Flag:</strong> ${item.verification.conflicts[0]}
-          </div>
-        ` : `
-          <div style="font-size: 11px; color: #34d399; margin-bottom: 10px;">
-            🛡️ <strong>Verifier Check:</strong> PASS (Zero clinical or resource contradictions)
-          </div>
-        `}
-
-        <!-- Score Weights Visualizer -->
-        <div class="score-row">
-          <span>Clinical Capability (${Math.round(item.capabilityScore * 100)}%)</span>
-          <span>Proximity & Traffic (${Math.round(item.proximityScore * 100)}%)</span>
-          <span>Capacity Buffer (${Math.round(item.capacityScore * 100)}%)</span>
-        </div>
-        <div class="score-progress-bar">
-          <div class="score-fill" style="width: ${Math.round(item.matchScore * 100)}%;"></div>
-        </div>
-
-        <!-- Action / HITL Acceptance Button -->
         <div style="display: flex; gap: 8px; margin-top: 10px;">
-          ${isSelected && State.currentCase.isAccepted ? `
-            <button class="btn btn-success btn-sm btn-full" disabled>
-              ✓ Destination Confirmed & Hospital Alerted
-            </button>
-          ` : `
-            <button class="btn ${isTopChoice ? 'btn-primary' : 'btn-secondary'} btn-sm btn-full" onclick="acceptRecommendation('${hosp.id}')">
-              ${isTopChoice ? 'Accept #1 Recommendation & Alert ED' : `Select Alternate (#${index + 1})`}
-            </button>
-          `}
+          <button class="btn ${isTopChoice ? 'btn-primary' : 'btn-secondary'} btn-sm btn-full" onclick="acceptRecommendation('${hosp.id}')">
+            ${isSelected ? '✓ Active Destination (Route Locked)' : (isTopChoice ? 'Accept #1 Recommendation & Route ➔' : `Select Alternate (#${index + 1}) & Auto-Reroute ➔`)}
+          </button>
         </div>
       </div>
     `;
   });
 
-  // Disqualified Hospitals Section
-  const disqualified = rankedResults.filter(r => r.isDisqualified);
-  if (disqualified.length > 0) {
-    html += `
-      <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
-        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">
-          Excluded / Disqualified Facilities (${disqualified.length})
-        </div>
-        ${disqualified.map(d => `
-          <div style="font-size: 11px; color: var(--text-muted); padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.05);">
-            ❌ <strong>${d.hospital.name}</strong>: ${d.disqualificationReasons.join("; ")}
-          </div>
-        `).join("")}
-      </div>
-    `;
-  }
-
   container.innerHTML = html;
 }
 
-// HITL Validation Action: Accept Recommendation
+// HITL Validation Action: Accept Recommendation & Auto-Reroute
 function acceptRecommendation(hospitalId) {
-  const topChoice = State.currentCase.recommendations[0]?.hospital?.id;
+  const hosp = State.hospitals.find(h => h.id === hospitalId) || State.hospitals[0];
+  const isAlternate = (hospitalId !== State.currentCase.recommendations[0]?.hospital?.id);
 
-  if (hospitalId !== topChoice) {
-    // Human is overriding the top recommendation! Open Mandatory Override Modal
-    openOverrideModal(hospitalId);
-  } else {
-    // Paramedic accepts top choice
-    finalizeDestinationChoice(hospitalId, "Accepted Top Agentic Recommendation");
+  // Directly lock destination without modal blocking
+  finalizeDestinationChoice(
+    hospitalId,
+    isAlternate ? `Paramedic Selected Alternate Facility '${hosp.name}'` : "Accepted Top Recommendation",
+    isAlternate,
+    0
+  );
+
+  // Automatically reroute on map immediately
+  if (leafletMap) {
+    renderLeafletMap();
   }
+  renderCanvasIndiaMap();
+
+  // Focus view on the active destination without unnecessary clutter
+  renderRecommendationsList(State.currentCase.recommendations, true);
 }
 
 // Alias for map popup button
@@ -1034,8 +1297,8 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
   State.currentCase.isAccepted = true;
   State.currentCase.overrideReason = isOverride ? reasonText : null;
 
-  const hosp = State.hospitals.find(h => h.id === hospitalId);
-  const recItem = State.currentCase.recommendations.find(r => r.hospital.id === hospitalId);
+  const hosp = State.hospitals.find(h => h.id === hospitalId) || State.hospitals[0];
+  const recItem = State.currentCase.recommendations?.find(r => r.hospital.id === hospitalId);
 
   let finalEta = recItem ? recItem.etaMinutes : 12;
   if (expectedDelay > 0) {
@@ -1056,7 +1319,7 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
     requiredResources: State.currentCase.triageResult?.requiredResources || ["ICU Bed", "Resuscitation Bay"],
     news2Score: State.currentCase.triageResult?.news2?.score || 8,
     timestamp: new Date().toLocaleTimeString(),
-    status: 'PENDING_HOSPITAL_ACK', // 'ACCEPTED' | 'DIVERTED'
+    status: 'PENDING_HOSPITAL_ACK',
     isOverride
   };
 
@@ -1065,9 +1328,9 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
 
   // Log in Audit Ledger
   appendAuditLog(
-    isOverride ? "PARAMEDIC_HITL_OVERRIDE" : "PARAMEDIC_HITL_ACCEPT",
+    isOverride ? "PARAMEDIC_DESTINATION_REROUTE" : "PARAMEDIC_DESTINATION_ACCEPT",
     "AMBULANCE",
-    isOverride ? `Paramedic OVERRODE top choice for '${hosp ? hosp.name : hospitalId}'. Reason: ${reasonText} (Delay: +${expectedDelay}m)` : `Paramedic ACCEPTED top recommendation '${hosp ? hosp.name : hospitalId}'`,
+    `Ambulance route locked to '${hosp ? hosp.name : hospitalId}'. ETA: ${finalEta}m. Reason: ${reasonText}`,
     {
       caseId: State.currentCase.id,
       hospitalId,
@@ -1078,12 +1341,10 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
     reasonText
   );
 
-  // Refresh Views
-  renderRecommendationsList(State.currentCase.recommendations);
+  // Refresh Views immediately
+  if (leafletMap) renderLeafletMap();
   renderMapCanvas();
-
-  // Show notification
-  alert(`Destination confirmed: ${hosp.name}.\nPre-arrival notification dispatched to hospital ED coordinator.`);
+  renderRecommendationsList(State.currentCase.recommendations, true);
 }
 
 // ------------------------------------------
@@ -2341,6 +2602,17 @@ async function initApp() {
 
   // Initial audit log
   appendAuditLog("SYSTEM_INITIALIZATION", "SYSTEM", "Multi-Agent Decision Support Prototype initialized with verified synthetic datasets.");
+
+  // Start Live Real-Time Hospital Telemetry Stream
+  startRealtimeHospitalStream();
+  renderPatientNearbyHospitals();
+
+  // Ensure Map starts docked in the corner in minimized form
+  const mapWrapper = document.getElementById('ambulance-map-wrapper');
+  if (mapWrapper) {
+    mapWrapper.classList.remove('corner-map-maximized');
+    mapWrapper.classList.add('corner-map-minimized');
+  }
 
   // Initialize Session / Auth state
   const loginView = document.getElementById('login-view');
