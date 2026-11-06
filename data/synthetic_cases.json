@@ -1,0 +1,178 @@
+[
+  {
+    "id": "CASE_001",
+    "category": "Cardiac - STEMI",
+    "chief_complaint": "Acute retrosternal crushing chest pain radiating to left jaw and arm for 45 minutes, diaphoresis, nausea",
+    "vitals": {
+      "hr": 108,
+      "sbp": 85,
+      "dbp": 55,
+      "spo2": 93,
+      "rr": 24,
+      "temp": 37.1,
+      "avpu": "Alert",
+      "gcs": 15
+    },
+    "red_flags": ["Chest pain radiating to arm/jaw", "Hypotension (SBP < 90)"],
+    "ground_truth": {
+      "urgency": "Emergency",
+      "required_specialty": "Interventional Cardiology",
+      "required_resources": ["Cath Lab", "Cardiac ICU", "Ventilator"],
+      "recommended_hospital_id": "HOSP_1"
+    }
+  },
+  {
+    "id": "CASE_002",
+    "category": "Neurological - Acute Ischemic Stroke",
+    "chief_complaint": "Sudden onset right-sided hemiplegia, facial droop, expressive aphasia, onset 1.5 hours ago (within thrombolytic window)",
+    "vitals": {
+      "hr": 88,
+      "sbp": 178,
+      "dbp": 102,
+      "spo2": 97,
+      "rr": 18,
+      "temp": 36.8,
+      "avpu": "Alert",
+      "gcs": 13
+    },
+    "red_flags": ["FAST positive: Facial droop + Arm weakness + Slurred speech"],
+    "ground_truth": {
+      "urgency": "Emergency",
+      "required_specialty": "Vascular Neurology",
+      "required_resources": ["Stroke Unit", "CT Scanner", "Neuro-ICU"],
+      "recommended_hospital_id": "HOSP_3"
+    }
+  },
+  {
+    "id": "CASE_003",
+    "category": "Trauma - Major Polytrauma",
+    "chief_complaint": "High-velocity road traffic collision, unrestrained driver, open bilateral femur fractures, blunt abdominal trauma, active hemorrhage",
+    "vitals": {
+      "hr": 132,
+      "sbp": 80,
+      "dbp": 50,
+      "spo2": 91,
+      "rr": 30,
+      "temp": 35.8,
+      "avpu": "Voice",
+      "gcs": 10
+    },
+    "red_flags": ["Severe shock", "High-velocity impact trauma", "Altered mental status"],
+    "ground_truth": {
+      "urgency": "Emergency",
+      "required_specialty": "Trauma Surgery",
+      "required_resources": ["Level 1 Trauma Bay", "Surgical ICU", "Blood Bank", "CT Scanner"],
+      "recommended_hospital_id": "HOSP_2"
+    }
+  },
+  {
+    "id": "CASE_004",
+    "category": "Respiratory - Severe Sepsis & ARDS",
+    "chief_complaint": "Elderly patient with 3-day history of productive cough, fever, marked respiratory exhaustion, altered mentation, mottled extremities",
+    "vitals": {
+      "hr": 125,
+      "sbp": 82,
+      "dbp": 48,
+      "spo2": 84,
+      "rr": 34,
+      "temp": 39.4,
+      "avpu": "Voice",
+      "gcs": 11
+    },
+    "red_flags": ["Severe hypoxemia (SpO2 < 88%)", "Septic shock"],
+    "ground_truth": {
+      "urgency": "Emergency",
+      "required_specialty": "Pulmonology & Critical Care",
+      "required_resources": ["Medical ICU", "Mechanical Ventilator", "Intensivist"],
+      "recommended_hospital_id": "HOSP_5"
+    }
+  },
+  {
+    "id": "CASE_005",
+    "category": "Abdominal - Acute Appendicitis with Localized Peritonitis",
+    "chief_complaint": "Acute migratory right lower quadrant abdominal pain for 14 hours, rebound tenderness, low-grade fever, vomiting",
+    "vitals": {
+      "hr": 92,
+      "sbp": 122,
+      "dbp": 78,
+      "spo2": 98,
+      "rr": 18,
+      "temp": 38.2,
+      "avpu": "Alert",
+      "gcs": 15
+    },
+    "red_flags": [],
+    "ground_truth": {
+      "urgency": "Urgent",
+      "required_specialty": "General Surgery",
+      "required_resources": ["Emergency Department Bed", "General Surgery OR"],
+      "recommended_hospital_id": "HOSP_4"
+    }
+  },
+  {
+    "id": "CASE_006",
+    "category": "Respiratory - Moderate Asthma Exacerbation",
+    "chief_complaint": "Known asthmatic with wheezing and tightness in chest after seasonal dust exposure, speaking in full sentences with mild effort",
+    "vitals": {
+      "hr": 98,
+      "sbp": 126,
+      "dbp": 82,
+      "spo2": 94,
+      "rr": 22,
+      "temp": 36.9,
+      "avpu": "Alert",
+      "gcs": 15
+    },
+    "red_flags": [],
+    "ground_truth": {
+      "urgency": "Urgent",
+      "required_specialty": "Emergency Medicine / Pulmonology",
+      "required_resources": ["Nebulization Station", "ED Bed"],
+      "recommended_hospital_id": "HOSP_4"
+    }
+  },
+  {
+    "id": "CASE_007",
+    "category": "Neurological - Tension Headache / Routine",
+    "chief_complaint": "Bilateral band-like pressure headache for 2 days, no visual aura, no fever, no neck stiffness, normal neurological exam",
+    "vitals": {
+      "hr": 74,
+      "sbp": 118,
+      "dbp": 76,
+      "spo2": 99,
+      "rr": 15,
+      "temp": 36.6,
+      "avpu": "Alert",
+      "gcs": 15
+    },
+    "red_flags": [],
+    "ground_truth": {
+      "urgency": "Routine",
+      "required_specialty": "General Medicine / Outpatient",
+      "required_resources": ["Outpatient Consultation"],
+      "recommended_hospital_id": "HOSP_6"
+    }
+  },
+  {
+    "id": "CASE_008",
+    "category": "Dermatology - Mild Contact Dermatitis / Routine",
+    "chief_complaint": "Localized pruritic erythematous rash on left forearm after working in garden, no facial swelling, no breathing difficulties",
+    "vitals": {
+      "hr": 70,
+      "sbp": 115,
+      "dbp": 75,
+      "spo2": 99,
+      "rr": 14,
+      "temp": 36.5,
+      "avpu": "Alert",
+      "gcs": 15
+    },
+    "red_flags": [],
+    "ground_truth": {
+      "urgency": "Routine",
+      "required_specialty": "Dermatology / General Outpatient",
+      "required_resources": ["Clinic Outpatient Room"],
+      "recommended_hospital_id": "HOSP_6"
+    }
+  }
+]

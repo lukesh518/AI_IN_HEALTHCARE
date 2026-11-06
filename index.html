@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisCare | Agentic Emergency Multi-Agent Decision Support System</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Leaflet CSS & JS for Interactive India OpenStreetMap -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+
+<body>
+
+  <!-- ======================================================== -->
+  <!-- 1. LOGIN & AUTHENTICATION SCREEN                         -->
+  <!-- ======================================================== -->
+  <div id="login-view" class="login-view-container">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-logo-glow">⚕️</div>
+        <h1 class="login-title">AegisCare Emergency Response</h1>
+        <p class="login-subtitle">Autonomous Clinical Multi-Agent Decision-Support System • India Sector</p>
+        <div class="login-badges">
+          <span class="badge-pill">🇮🇳 Ayushman Bharat (ABDM) Compatible</span>
+          <span class="badge-pill">HL7 FHIR v4</span>
+          <span class="badge-pill">DPDP Act 2023 Compliant</span>
+        </div>
+      </div>
+
+      <form id="login-form" onsubmit="handleLoginSubmit(event)" class="login-form">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" style="font-weight: 600;">Select Operational Clinical Role:</label>
+          <div class="role-grid">
+            <div class="role-card active" id="role-ambulance" onclick="selectLoginRole('ambulance', this)">
+              <div class="role-icon">🚑</div>
+              <div class="role-details">
+                <div class="role-name">Paramedic Fleet Crew</div>
+                <div class="role-desc">Unit 9021 • Mobile ICU Telemetry</div>
+              </div>
+            </div>
+            <div class="role-card" id="role-hospital" onclick="selectLoginRole('hospital', this)">
+              <div class="role-icon">🏥</div>
+              <div class="role-details">
+                <div class="role-name">Hospital ED Coordinator</div>
+                <div class="role-desc">Metro Heart ED • Resuscitation Bay Lead</div>
+              </div>
+            </div>
+            <div class="role-card" id="role-patient" onclick="selectLoginRole('patient', this)">
+              <div class="role-icon">👤</div>
+              <div class="role-details">
+                <div class="role-name">Citizen / Patient</div>
+                <div class="role-desc">Emergency Symptom Assessment & Guidance</div>
+              </div>
+            </div>
+            <div class="role-card" id="role-evaluation" onclick="selectLoginRole('evaluation', this)">
+              <div class="role-icon">🛡️</div>
+              <div class="role-details">
+                <div class="role-name">Medical Auditor & Ethics</div>
+                <div class="role-desc">Quality Assurance & Cryptographic Audit</div>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="selected-role-input" value="ambulance">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label class="form-label" for="login-username">Staff Identifier / ABHA ID:</label>
+            <input type="text" id="login-username" class="form-input" value="AMB-BLR-9021" required
+              placeholder="e.g. AMB-BLR-9021">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="login-password">Access PIN / Password:</label>
+            <input type="password" id="login-password" class="form-input" value="••••••••" required
+              placeholder="Enter Security PIN">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label class="form-label" for="login-region">Regional Dispatch Sector (India):</label>
+          <select id="login-region" class="form-select">
+            <option value="blr" selected>Bengaluru Urban Emergency Sector (Karnataka, India)</option>
+            <option value="del">Delhi-NCR Central Emergency Trauma Grid</option>
+            <option value="mum">Mumbai Metropolitan Region Trauma Response</option>
+            <option value="all">Integrated National Emergency Health Grid (All-India)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block"
+          style="padding: 13px; font-size: 15px; font-weight: 700; width: 100%; justify-content: center; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
+          🔐 Authenticate & Enter Portal
+        </button>
+
+        <div class="quick-demo-logins">
+          <div class="quick-login-title">⚡ Instant 1-Click Demo Sign-In:</div>
+          <div class="quick-login-buttons">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('ambulance')">🚑
+              Paramedic</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('hospital')">🏥 ED Lead</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('patient')">👤 Citizen</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="quickLogin('evaluation')">🛡️ AI
+              Auditor</button>
+          </div>
+        </div>
+
+        <div class="login-footer-security">
+          🔒 Encrypted Session with SHA-256 Tamper-Proof Audit Logging. Aligned with India DPDP Act 2023 & HIPAA
+          Security Rule.
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- 2. MAIN APPLICATION WORKSPACE (REVEALED UPON LOGIN)      -->
+  <!-- ======================================================== -->
+  <div id="app-view" style="display: none; min-height: 100vh; flex-direction: column;">
+
+    <!-- Top Navigation Bar -->
+    <header class="header-bar">
+      <div class="brand-badge">
+        <div class="brand-icon">⚕️</div>
+        <div>
+          <div class="brand-title">AegisCare Multi-Agent System</div>
+          <div class="brand-subtitle">Clinical Workflow Automation & Emergency Intelligence</div>
+        </div>
+      </div>
+
+      <!-- 3 Core Portals + Governance & Evaluation Navigation -->
+      <nav class="portal-nav" aria-label="Portal Navigation">
+        <button class="nav-tab-btn active" data-portal="ambulance" onclick="switchPortal('ambulance')">
+          🚑 Ambulance Portal <span
+            style="font-size: 10px; background: rgba(255,255,255,0.15); padding: 1px 5px; border-radius: 4px;">Core</span>
+        </button>
+        <button class="nav-tab-btn" data-portal="hospital" onclick="switchPortal('hospital')">
+          🏥 Hospital ED Portal
+        </button>
+        <button class="nav-tab-btn" data-portal="patient" onclick="switchPortal('patient')">
+          👤 Patient Portal
+        </button>
+        <button class="nav-tab-btn" data-portal="evaluation" onclick="switchPortal('evaluation')">
+          📊 Evaluation (Benchmarks)
+        </button>
+        <button class="nav-tab-btn" data-portal="audit" onclick="switchPortal('audit')">
+          📜 Immutable Audit Log
+        </button>
+        <button class="nav-tab-btn" data-portal="governance" onclick="switchPortal('governance')">
+          🛡️ Responsible AI
+        </button>
+      </nav>
+
+      <div class="header-actions">
+        <div class="status-indicator">
+          <span class="pulse-dot"></span>
+          Multi-Agent Swarm Active
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="resetAllScenarios()">
+          🔄 Reset Simulation
+        </button>
+        <!-- Logged In User Profile & Logout -->
+        <div id="header-user-badge" class="user-profile-badge">
+          <span class="user-avatar" id="header-user-avatar">🚑</span>
+          <div class="user-meta">
+            <div class="user-name" id="header-user-name">Paramedic V. Sharma</div>
+            <div class="user-role" id="header-user-role">Unit #9021 • Bengaluru</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="handleLogout()" title="Log out of AegisCare">
+            🚪 Log Out
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Application Wrapper -->
+    <main class="main-wrapper">
+
+      <!-- Global Regulatory & Clinical Disclaimer -->
+      <div class="disclaimer-banner">
+        <div>
+          <strong>Domain 1 Specification Compliant:</strong> Clinical decision-support system utilizing strictly
+          synthetic patient cohorts, NEWS2 deterioration baselines, and deterministic Human-in-the-Loop (HITL)
+          validation. Aligned with DPDP Act 2023 & HIPAA privacy principles.
+        </div>
+        <span class="disclaimer-tag">Decision Support • Not Diagnosis</span>
+      </div>
+
+      <!-- Quick Scenario / Chaos Simulation Control Bar -->
+      <section class="scenario-bar" aria-label="Chaos Simulation Engine">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">⚡</span>
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: white;">Interactive Scenario Simulation</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Trigger dynamic capacity shocks and verify real-time
+              agentic re-routing:</div>
+          </div>
+        </div>
+        <div class="scenario-chips">
+          <button class="scenario-btn" onclick="triggerScenario('icu_full')">
+            🚨 Target Hospital ICU Fills Up (0 beds)
+          </button>
+          <button class="scenario-btn" onclick="triggerScenario('road_block')">
+            🚧 Major Bridge Blocked (+22 min delay)
+          </button>
+          <button class="scenario-btn" onclick="triggerScenario('mid_transit_drop')">
+            ⚠️ Mid-Transit Desaturation (SpO2 82%)
+          </button>
+          <button class="scenario-btn" onclick="triggerScenario('hospital_divert')">
+            ✕ Hospital Rejects Case (Trigger Re-route)
+          </button>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- PORTAL 1: AMBULANCE PORTAL (CORE INTERACTIVE WORKFLOW)   -->
+      <!-- ======================================================== -->
+      <section id="panel-ambulance" class="portal-panel active">
+
+        <!-- Multi-Agent Workflow Pipeline Stage Bar -->
+        <div class="agent-pipeline-bar">
+          <div class="pipeline-step passed">
+            <span class="step-num">1</span>
+            <span>Orchestrator Input</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="pipeline-step passed">
+            <span class="step-num">2</span>
+            <span>Triage & NEWS2 Agent</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="pipeline-step passed">
+            <span class="step-num">3</span>
+            <span>Hospital-Matching Agent</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="pipeline-step passed">
+            <span class="step-num">4</span>
+            <span>OSM Routing Agent</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="pipeline-step passed">
+            <span class="step-num">5</span>
+            <span>Verifier Agent</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="pipeline-step active">
+            <span class="step-num">6</span>
+            <span style="font-weight: 700; color: #60a5fa;">Paramedic HITL Gate</span>
+          </div>
+        </div>
+
+        <!-- Autonomous Priority 1 Emergency Escalation Alert Banner -->
+        <div id="ambulance-p1-alert" class="priority-1-badge" style="display: none; width: 100%; margin-bottom: 16px; padding: 12px 18px; justify-content: space-between; align-items: center; border-radius: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">🚨</span>
+            <div>
+              <div style="font-weight: 800; font-size: 13.5px; letter-spacing: 0.02em;">PRIORITY 1: TOP EMERGENCY DISPATCH (CODE RED)</div>
+              <div style="font-size: 11px; opacity: 0.9;" id="ambulance-p1-subtext">Autonomous Hospital Allocation Active • Pre-Arrival Alert Sent</div>
+            </div>
+          </div>
+          <span class="status-indicator" style="background: rgba(255,255,255,0.2); border-color: white; color: white; font-weight: 800;">
+            SIREN & ARTERIAL CLEARANCE ACTIVE
+          </span>
+        </div>
+
+        <div class="grid-ambulance">
+
+          <!-- Column 1: Paramedic Case Input & Live Telemetry -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">🚑 Paramedic Case Entry</h2>
+                <span style="font-size: 11px; color: var(--text-muted);">Ambulance #9021</span>
+              </div>
+
+              <!-- Preset Scenarios -->
+              <div class="form-group">
+                <label class="form-label">Emergency Case Presets:</label>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('stemi')">STEMI</button>
+                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('stroke')">Stroke</button>
+                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('trauma')">Polytrauma</button>
+                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('sepsis')">Sepsis/ARDS</button>
+                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('asthma')">Asthma</button>
+                </div>
+              </div>
+
+              <!-- Case Narrative / Speech Simulation -->
+              <div class="form-group">
+                <label class="form-label" for="case-notes-input">Paramedic Clinical Observations (Text / Voice
+                  Input):</label>
+                <textarea id="case-notes-input" class="form-textarea" rows="3"
+                  placeholder="Enter clinical observations, onset time, presenting symptoms..."></textarea>
+              </div>
+
+              <button class="btn btn-primary btn-full btn-sm" onclick="runAmbulancePipeline()">
+                ⚡ Run Multi-Agent Evaluation
+              </button>
+            </div>
+
+            <!-- Live Telemetry Stream & NEWS2 Gauge -->
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">📡 Real-Time Telemetry Stream</h2>
+                <span class="status-indicator">Live Sensor Sync</span>
+              </div>
+
+              <div class="vitals-grid">
+                <div class="vital-tile" id="tile-hr">
+                  <span class="vital-label">Heart Rate</span>
+                  <div class="vital-value-row">
+                    <span class="vital-value" id="vital-hr">108</span>
+                    <span class="vital-unit">bpm</span>
+                  </div>
+                  <span class="vital-badge">ECG</span>
+                </div>
+
+                <div class="vital-tile" id="tile-bp">
+                  <span class="vital-label">Blood Pressure</span>
+                  <div class="vital-value-row">
+                    <span class="vital-value" id="vital-bp">88/58</span>
+                    <span class="vital-unit">mmHg</span>
+                  </div>
+                  <span class="vital-badge">NIBP</span>
+                </div>
+
+                <div class="vital-tile critical" id="tile-spo2">
+                  <span class="vital-label">Oxygen Saturation</span>
+                  <div class="vital-value-row">
+                    <span class="vital-value" id="vital-spo2">93%</span>
+                    <span class="vital-unit">SpO₂</span>
+                  </div>
+                  <span class="vital-badge">PulseOx</span>
+                </div>
+
+                <div class="vital-tile" id="tile-rr">
+                  <span class="vital-label">Respiratory Rate</span>
+                  <div class="vital-value-row">
+                    <span class="vital-value" id="vital-rr">24</span>
+                    <span class="vital-unit">/min</span>
+                  </div>
+                  <span class="vital-badge">Capno</span>
+                </div>
+              </div>
+
+              <!-- NEWS2 Deterioration Score Indicator -->
+              <div
+                style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; margin-top: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <span
+                    style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary);">
+                    Baseline NEWS2 Risk Score
+                  </span>
+                  <span id="vital-news2" style="font-size: 20px; font-weight: 800; color: #ef4444;">8</span>
+                </div>
+                <div id="vital-news2-desc" style="font-size: 11px; color: #f87171; font-weight: 600; margin-top: 2px;">
+                  High Clinical Deterioration Risk (Urgent Medical Review)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 2: Live Geographic Routing Map -->
+          <div>
+            <div class="card" style="padding: 16px; height: 100%; display: flex; flex-direction: column;">
+              <div class="card-header" style="margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <h2 class="card-title">🗺️ Geographic Routing & Live Fleet Positioning</h2>
+                  <div class="card-subtitle">OpenStreetMap India & Real-Time Emergency Fleet Navigation</div>
+                </div>
+                <!-- Map View Selectors -->
+                <div class="map-view-controls">
+                  <button class="btn btn-sm btn-outline active" id="btn-view-blr" onclick="setMapView('bengaluru')">
+                    📍 Bengaluru Sector
+                  </button>
+                  <button class="btn btn-sm btn-outline" id="btn-view-ind" onclick="setMapView('india')">
+                    🇮🇳 All-India Map
+                  </button>
+                  <button class="btn btn-sm btn-outline" id="btn-map-mode" onclick="toggleMapMode()"
+                    title="Toggle Leaflet OpenStreetMap vs Tactical Vector Map">
+                    🌐 Mode: OSM
+                  </button>
+                </div>
+              </div>
+
+              <div class="map-container" style="flex: 1; min-height: 480px; position: relative;">
+                <div class="map-header">
+                  <div class="map-badge" id="map-status-pill">
+                    🚑 <strong>Ambulance #9021</strong>: En Route • Bengaluru Urban, India
+                  </div>
+                  <div class="map-badge">
+                    🟢 Ready ICU &nbsp; 🟠 Constrained &nbsp; 🔴 Divert / Stale
+                  </div>
+                </div>
+                <div id="leaflet-map"
+                  style="width: 100%; height: 100%; min-height: 480px; border-radius: var(--radius-md);"></div>
+                <canvas id="map-canvas" class="map-canvas" style="display: none;"></canvas>
+
+                <!-- Floating Live Traffic & Route Guidance Overlay -->
+                <div id="map-traffic-guide" class="map-traffic-guide">
+                  <div class="traffic-guide-header">
+                    <span class="traffic-guide-badge">⚡ RECOMMENDED OPTIMAL ROUTE</span>
+                    <span class="traffic-guide-live" id="traffic-guide-status">🟢 Traffic: Clear Flow (48 km/h)</span>
+                  </div>
+                  <div class="traffic-guide-route" id="traffic-guide-route-text">
+                    Ambulance #9021 ➔ Richmond Circle Flyover ➔ Hosur Expressway Bypass (Fastest Route)
+                  </div>
+                  <div class="traffic-guide-meta" id="traffic-guide-meta">
+                    <span>⏱️ <strong>ETA: ~9 mins</strong> (Saves 16 mins vs congested route)</span>
+                    <span style="color: #f87171;">⚠️ Brigade Rd Corridor: Heavy Bottleneck (+18m delay)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 3: Top-3 Ranked Recommendations & HITL Validation -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2 class="card-title">🎯 Ranked Recommendations</h2>
+                  <div class="card-subtitle">Explainable Evidence Cards & Verifier Cross-Checks</div>
+                </div>
+              </div>
+
+              <!-- Triage Summary Banner -->
+              <div id="triage-summary-banner"></div>
+
+              <!-- Top 3 Recommendations Container -->
+              <div id="recommendations-container">
+                <!-- Dynamically rendered by app.js -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- PORTAL 2: HOSPITAL ED COORDINATOR PORTAL                 -->
+      <!-- ======================================================== -->
+      <section id="panel-hospital" class="portal-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">🏥 Hospital Emergency Department Coordination Portal</h2>
+              <div class="card-subtitle">Manage Facility Capacity, Monitor Pre-Arrival Alerts, and Enforce Data
+                Freshness</div>
+            </div>
+
+            <!-- Facility Switcher -->
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);"
+                for="hospital-selector">Select Facility:</label>
+              <select id="hospital-selector" class="form-select" style="width: 320px;"
+                onchange="onHospitalChange(this.value)">
+                <!-- Options populated by app.js -->
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-2">
+
+            <!-- Capacity Management Console -->
+            <div
+              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: white;">Facility Capacity & Specialist Status</h3>
+                <div id="hosp-staleness-badge"></div>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label class="form-label" for="hosp-ed-beds">Available General ED Beds:</label>
+                  <input type="number" id="hosp-ed-beds" class="form-input" min="0" max="60">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="hosp-icu-beds">Available ICU Beds (Critical):</label>
+                  <input type="number" id="hosp-icu-beds" class="form-input" min="0" max="30">
+                </div>
+              </div>
+
+              <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 10px;">
+                <div class="grid-2">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                    <input type="checkbox" id="hosp-cath-toggle" style="width: 16px; height: 16px;">
+                    Primary PCI Cath Lab Available
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                    <input type="checkbox" id="hosp-stroke-toggle" style="width: 16px; height: 16px;">
+                    Comprehensive Stroke Unit Available
+                  </label>
+                </div>
+
+                <div style="margin-top: 12px;">
+                  <label
+                    style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: #f87171;">
+                    <input type="checkbox" id="hosp-divert-toggle" style="width: 16px; height: 16px;">
+                    <strong>Declare Facility Divert Status (ED Full / Internal Code)</strong>
+                  </label>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-top: 16px;">
+                <button class="btn btn-primary btn-sm btn-full" onclick="updateHospitalCapacity()">
+                  💾 Save Live Capacity Updates
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="refreshHospitalStaleness()">
+                  🔄 Verify Data Freshness
+                </button>
+              </div>
+            </div>
+
+            <!-- Pre-Arrival Alert Queue -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: white;">⚡ Pre-Arrival Ambulance Inbound Queue</h3>
+                <span class="status-indicator">FHIR Protocol Standard</span>
+              </div>
+
+              <div id="hospital-alerts-queue">
+                <!-- Dynamically populated by app.js -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- PORTAL 3: PATIENT PORTAL (LIGHTWEIGHT TRIAGE)            -->
+      <!-- ======================================================== -->
+      <section id="panel-patient" class="portal-panel">
+        <div class="card" style="max-width: 800px; margin: 0 auto;">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">👤 Patient Triage & Guidance Portal</h2>
+              <div class="card-subtitle">Non-Emergency Guidance, Urgency Classification & Red-Flag Safety Escalation
+              </div>
+            </div>
+            <span class="status-indicator">Strictly Non-Emergency</span>
+          </div>
+
+          <!-- Patient Demographics & Onset Timing -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="patient-age-input">👤 Patient Age (Years):</label>
+              <input type="number" id="patient-age-input" class="form-input" min="1" max="115" value="58" placeholder="e.g. 58" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="patient-onset-input">⏱️ When Did Symptoms Start?:</label>
+              <select id="patient-onset-input" class="form-select">
+                <option value="under_30_mins">⚡ Less than 30 minutes ago (Hyper-Acute)</option>
+                <option value="30_60_mins" selected>⏳ 30 - 60 minutes ago (Critical Window)</option>
+                <option value="1_2_hours">🕒 1 - 2 hours ago (Thrombolysis Window)</option>
+                <option value="2_4_hours">🕒 2 - 4 hours ago</option>
+                <option value="4_12_hours">🕓 4 - 12 hours ago</option>
+                <option value="over_12_hours">📅 More than 12 hours ago / Chronic</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Complaint Presets -->
+          <div class="form-group">
+            <label class="form-label">Common Symptom Presets:</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('chest_pain')">Chest Pain (Red
+                Flag)</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('stroke')">Facial Droop / Speech (Red
+                Flag)</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('headache')">Mild Headache
+                (Routine)</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('rash')">Skin Rash (Routine)</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="patient-symptoms-input">Describe how you are feeling (Text or Voice):</label>
+            <textarea id="patient-symptoms-input" class="form-textarea" rows="3"
+              placeholder="Describe symptoms, severity, any known conditions..."></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn btn-primary" onclick="analyzePatientSymptoms()">
+              🔍 Analyze Symptoms with AI Triage
+            </button>
+            <span style="font-size: 11px; color: var(--text-muted);">
+              🔒 Zero PII: No name or identification required
+            </span>
+          </div>
+
+          <!-- Result Box -->
+          <div id="patient-triage-result" style="display: none;"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- PORTAL 4: MEASURABLE EVALUATION DASHBOARD                -->
+      <!-- ======================================================== -->
+      <section id="panel-evaluation" class="portal-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">📊 Measurable Clinical Evaluation & Benchmarks</h2>
+              <div class="card-subtitle">Automated Multi-Metric Evaluation over 100 Synthetic Patient Cohorts</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="runBenchmarkEvaluation()">
+              ⚡ Re-Run Benchmark Suite
+            </button>
+          </div>
+
+          <!-- Custom Scenario & Expected Delay Stress-Testing Box -->
+          <div style="background: rgba(31, 41, 55, 0.7); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="font-size: 13px; font-weight: 700; color: #60a5fa;">
+                🧪 Custom Reason & Expected Delay Stress-Test Benchmark
+              </div>
+              <span class="status-indicator">Adversarial Evaluation</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+              Provide your own clinical/operational reason and expected transit delay to stress-test how the multi-agent system re-ranks candidate hospitals and mitigates secondary transfer risk:
+            </p>
+            <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="eval-custom-reason">Your Custom Scenario / Obstacle Reason:</label>
+                <input type="text" id="eval-custom-reason" class="form-input" value="Severe Waterlogging & Heavy Arterial Gridlock on Hosur Road" placeholder="e.g. VIP Roadblock, Bridge Construction..." />
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="eval-custom-delay">Expected Delay (Mins):</label>
+                <input type="number" id="eval-custom-delay" class="form-input" min="0" max="120" value="18" placeholder="e.g. 18" />
+              </div>
+              <button class="btn btn-primary" onclick="runCustomEvaluation()" style="height: 38px; padding: 0 16px;">
+                🚀 Test Custom Scenario
+              </button>
+            </div>
+          </div>
+
+          <!-- 6 Core Quantitative Metrics Grid -->
+          <div class="grid-3" id="eval-kpi-grid" style="margin-bottom: 24px;">
+            <!-- Dynamically populated by app.js -->
+          </div>
+
+          <!-- Test Case Execution Trace Table -->
+          <h3 style="font-size: 14px; font-weight: 700; color: white; margin-bottom: 12px;">Synthetic Benchmark Case
+            Execution Traces:</h3>
+          <div
+            style="overflow-x: auto; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Clinical Presentation</th>
+                  <th>True Urgency</th>
+                  <th>Predicted Urgency</th>
+                  <th>Selected Destination</th>
+                  <th>Latency</th>
+                  <th>Verifier Status</th>
+                </tr>
+              </thead>
+              <tbody id="eval-log-table-body">
+                <!-- Dynamically populated by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- PORTAL 5: IMMUTABLE AUDIT LOG & COMPLIANCE LEDGER        -->
+      <!-- ======================================================== -->
+      <section id="panel-audit" class="portal-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">📜 Immutable Clinical Audit Log & Governance Ledger</h2>
+              <div class="card-subtitle">Cryptographically Verifiable Record of All Agent Inferences, Verifier Checks &
+                HITL Decisions</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="exportAuditLogJson()">
+              📥 Export Audit Log (JSON)
+            </button>
+          </div>
+
+          <div
+            style="overflow-x: auto; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Portal</th>
+                  <th>Event Type</th>
+                  <th>Event Summary</th>
+                  <th>Human Decision / Rationale</th>
+                  <th>Tamper-Proof Signature</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body">
+                <!-- Dynamically populated by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- PORTAL 6: RESPONSIBLE AI, ETHICS & SAFETY ARCHITECTURE   -->
+      <!-- ======================================================== -->
+      <section id="panel-governance" class="portal-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">🛡️ Responsible AI, Privacy & Safety Architecture</h2>
+              <div class="card-subtitle">Compliance with Domain 1 Guidelines, DPDP Act 2023, and HIPAA Standards</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div
+              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
+              <h3 style="font-size: 14px; font-weight: 700; color: #60a5fa; margin-bottom: 8px;">🔒 Data Minimization &
+                Privacy Protection</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                In accordance with <strong>India's DPDP Act 2023</strong> and <strong>HIPAA Privacy Norms</strong>,
+                pre-arrival hospital alerts contain strictly clinical and logistical parameters:
+              </p>
+              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>Zero PII Transmitted:</strong> Patient name, national ID, age, gender, address, and
+                  insurance info are never shared with prospective facilities.</li>
+                <li><strong>Transmitted Payload:</strong> Acuity category, NEWS2 deterioration score, driving ETA, and
+                  required clinical capabilities (e.g. Cath Lab, Blood Bank).</li>
+                <li><strong>Role-Based Access Control:</strong> Paramedics only access the active encounter; hospitals
+                  only view pre-arrival packets specifically dispatched to them.</li>
+              </ul>
+            </div>
+
+            <div
+              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
+              <h3 style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 8px;">🛡️ Deterministic
+                Clinical Safeguards & HITL</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                The AI operates purely as an <em>explainable decision-support agent</em> and never makes autonomous
+                clinical interventions:
+              </p>
+              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>Hard Red-Flag Rules:</strong> Deterministic overrides bypass probabilistic uncertainty when
+                  acute patterns (e.g., crushing chest pain, FAST stroke symptoms) appear.</li>
+                <li><strong>Adversarial Verifier Agent:</strong> Intercepts hallucinations or resource mismatches (e.g.
+                  preventing dispatch to a facility with 0 ICU beds).</li>
+                <li><strong>Mandatory Human Validation:</strong> Paramedics must accept or override recommendations; all
+                  overrides mandate a logged clinical rationale.</li>
+              </ul>
+            </div>
+
+            <div
+              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
+              <h3 style="font-size: 14px; font-weight: 700; color: #f59e0b; margin-bottom: 8px;">⚖️ Algorithmic Fairness
+                & Bias Audits</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                The multi-agent system is evaluated across diverse synthetic demographic strata to prevent disparity:
+              </p>
+              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>Equal Acuity Sensitivity:</strong> Triage sensitivity is calibrated identically across age
+                  brackets and genders to avoid under-triaging atypical presentations (e.g., female myocardial
+                  infarction symptoms).</li>
+                <li><strong>Geographic Parity:</strong> Proximity routing incorporates real-time congestion models
+                  rather than favoring affluent metropolitan hospital zones.</li>
+              </ul>
+            </div>
+
+            <div
+              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px;">
+              <h3 style="font-size: 14px; font-weight: 700; color: #f87171; margin-bottom: 8px;">⚠️ Explicit Real-World
+                Limitations</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                Honest disclosure of constraints required by healthcare research standards:
+              </p>
+              <ul style="font-size: 12px; color: var(--text-secondary); margin-left: 20px; line-height: 1.8;">
+                <li><strong>Synthetic Data Origin:</strong> All evaluations use synthetic patient models (Synthea
+                  baseline). The system has not undergone clinical regulatory clearance (e.g. FDA / CDSCO).</li>
+                <li><strong>Hospital Telemetry Dependency:</strong> Re-routing accuracy is contingent on emergency
+                  departments maintaining active, low-staleness telemetry feeds.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ======================================================== -->
+    <!-- MODAL: MANDATORY HUMAN-IN-THE-LOOP OVERRIDE DIALOG       -->
+    <!-- ======================================================== -->
+    <div id="override-modal" class="modal-backdrop" role="dialog" aria-modal="true"
+      aria-labelledby="override-modal-title">
+      <div class="modal-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 id="override-modal-title" style="font-size: 16px; font-weight: 700; color: white;">
+            ⚠️ Paramedic HITL Recommendation Override
+          </h3>
+          <button onclick="closeOverrideModal()"
+            style="background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer;">✕</button>
+        </div>
+
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+          You are overriding the Top-1 AI recommendation and selecting <strong id="override-target-name"
+            style="color: #60a5fa;">[Hospital Name]</strong>. For clinical governance and audit compliance, please
+          specify your rationale:
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="override-reason-select">Override Primary Reason Category:</label>
+          <select id="override-reason-select" class="form-select">
+            <option value="Paramedic Clinical Judgment">Paramedic Clinical Assessment / Nuanced Symptomatology</option>
+            <option value="Patient / Family Specific Preference">Patient / Family Explicit Facility Preference</option>
+            <option value="Pre-existing Medical History / Primary Physician">Pre-existing Clinical History / Established Specialist at Facility</option>
+            <option value="Unreported Road / Weather Incident">Local Unreported Road Obstruction / Severe Weather</option>
+            <option value="Suspected Stale Data at Target">Suspected Capacity Strain or Unreported In-Hospital Delay</option>
+            <option value="Custom Override Rationale">Custom Rationale (Specified Below)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="override-custom-reason">✍️ Enter Your Specific Clinical / Operational Reason:</label>
+          <input type="text" id="override-custom-reason" class="form-input" placeholder="Type your own custom clinical or operational reason here..." value="Paramedic clinical judgment: specialized coronary care team confirmed on site" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="override-expected-delay">⏱️ Expected Transit / Traffic Delay (Minutes):</label>
+          <input type="number" id="override-expected-delay" class="form-input" min="0" max="180" value="10" placeholder="e.g. 10 mins delay expected" />
+          <small style="color: var(--text-muted); font-size: 11px;">This delay will be incorporated into the route navigation ETA and permanently logged in the audit ledger.</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="override-notes-input">Additional Clinical Notes (Optional):</label>
+          <textarea id="override-notes-input" class="form-textarea" rows="2"
+            placeholder="Optional clinical observations justifying override..."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button class="btn btn-secondary" onclick="closeOverrideModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="submitOverrideDecision()">
+            Confirm Override & Log Audit Entry
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- End #app-view -->
+
+  <script src="app.js"></script>
+  <script>
+    // Preset loader for ambulance portal
+    function loadCasePreset(type) {
+      const c = State.currentCase;
+      if (type === 'stemi') {
+        c.category = "Cardiac - Acute STEMI";
+        c.notes = "62-year-old male with acute retrosternal crushing chest pain radiating to left jaw and arm for 45 mins. Diaphoretic, pale, dyspneic.";
+        c.vitals = { hr: 108, sbp: 88, dbp: 58, spo2: 93, rr: 24, temp: 37.1, avpu: "Alert", gcs: 15 };
+        c.patientAge = 62;
+        c.symptomOnset = "45 mins ago";
+        c.isPriority1 = true;
+      } else if (type === 'stroke') {
+        c.category = "Neurological - Acute Ischemic Stroke";
+        c.notes = "71-year-old female with sudden right-sided hemiplegia and expressive aphasia, onset 80 mins ago. FAST score positive.";
+        c.vitals = { hr: 88, sbp: 182, dbp: 104, spo2: 97, rr: 18, temp: 36.8, avpu: "Alert", gcs: 13 };
+        c.patientAge = 71;
+        c.symptomOnset = "80 mins ago";
+        c.isPriority1 = true;
+      } else if (type === 'trauma') {
+        c.category = "Trauma - Major Polytrauma";
+        c.notes = "High-velocity motor vehicle crash, driver unrestrained, bilateral open femur fractures, active abdominal guarding, hemorrhagic shock.";
+        c.vitals = { hr: 134, sbp: 78, dbp: 48, spo2: 90, rr: 32, temp: 35.6, avpu: "Voice", gcs: 10 };
+        c.patientAge = 28;
+        c.symptomOnset = "< 30 mins";
+        c.isPriority1 = true;
+      } else if (type === 'sepsis') {
+        c.category = "Respiratory - Severe Sepsis / ARDS";
+        c.notes = "Elderly patient with 3-day history of pneumonia, severe dyspnea, mottling, confusion, and tachypnea.";
+        c.vitals = { hr: 122, sbp: 84, dbp: 50, spo2: 85, rr: 34, temp: 39.5, avpu: "Voice", gcs: 11 };
+        c.patientAge = 68;
+        c.symptomOnset = "> 12 hours";
+        c.isPriority1 = false;
+      } else if (type === 'asthma') {
+        c.category = "Respiratory - Moderate Asthma";
+        c.notes = "24-year-old female with known bronchial asthma, moderate wheezing after allergen exposure, speaking in phrases.";
+        c.vitals = { hr: 96, sbp: 124, dbp: 80, spo2: 95, rr: 22, temp: 36.9, avpu: "Alert", gcs: 15 };
+        c.patientAge = 24;
+        c.symptomOnset = "2 hours ago";
+        c.isPriority1 = false;
+      }
+      c.isAccepted = false;
+      c.selectedHospitalId = null;
+      renderAmbulancePortal();
+      runAmbulancePipeline();
+    }
+  </script>
+</body>
+
+</html>
