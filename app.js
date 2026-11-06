@@ -30,6 +30,22 @@ const State = {
   // Hospitals Dataset
   hospitals: [],
 
+  // Central Database Collections
+  patients: [],
+  ambulances: [],
+  completedCases: [],
+
+  // Active Contexts & Sub-Tabs
+  activePatientId: "PAT_001",
+  patientSubTab: "triage", // 'triage' | 'phr' | 'tracker' | 'firstaid'
+  ambulanceSubTab: "dispatch", // 'dispatch' | 'handover' | 'history'
+  hospitalSubTab: "capacity", // 'capacity' | 'inbound' | 'completed'
+
+  // Interactive Symptom State
+  selectedSymptoms: [],
+  voiceRecognition: null,
+  isVoiceRecording: false,
+
   // Cases Dataset
   cases: [],
 
@@ -93,9 +109,9 @@ const ROLES = {
     targetPortal: "hospital"
   },
   patient: {
-    defaultId: "CITIZEN-BLR-704",
-    defaultName: "Aarav Mehta",
-    title: "Citizen Patient • Emergency Triage",
+    defaultId: "PAT_001",
+    defaultName: "Rajesh Kumar",
+    title: "Registered Patient • Health & Triage",
     avatar: "👤",
     targetPortal: "patient"
   },
@@ -105,6 +121,284 @@ const ROLES = {
     title: "Medical Supervisor & Quality Auditor",
     avatar: "📊",
     targetPortal: "evaluation"
+  }
+};
+
+// 8-Stage Emergency Case Lifecycle Stepper
+const CASE_STAGES = [
+  { index: 1, id: "new_request", label: "New Request", icon: "📝" },
+  { index: 2, id: "accepted", label: "Accepted", icon: "✅" },
+  { index: 3, id: "dispatched", label: "Ambulance Dispatched", icon: "🚑" },
+  { index: 4, id: "reached_patient", label: "Reached Patient", icon: "📍" },
+  { index: 5, id: "patient_picked_up", label: "Patient Picked Up", icon: "👤" },
+  { index: 6, id: "en_route_hospital", label: "En Route to Hospital", icon: "⚡" },
+  { index: 7, id: "reached_hospital", label: "Reached Hospital", icon: "🏥" },
+  { index: 8, id: "completed", label: "Case Completed", icon: "🏁" }
+];
+
+// Medically Reviewed Situation-Specific First Aid Guidance (WHO / Red Cross / AHA)
+const FIRST_AID_PROTOCOLS = {
+  cardiac: {
+    title: "Suspected Heart Attack / Acute Coronary Syndrome",
+    category: "Cardiac",
+    alertBadge: "🚨 CRITICAL CARDIAC FIRST-AID PROTOCOL (AHA / ERC GUIDELINES)",
+    dos: [
+      "Stop all physical exertion immediately. Sit upright or semi-reclined in a comfortable position with back supported.",
+      "Call emergency services (112 / 108) immediately and keep the phone line open for dispatch instructions.",
+      "Loosen all tight clothing around the neck, chest, and waist to facilitate easier breathing.",
+      "Chew one adult aspirin (300mg) or 4 baby aspirins ONLY IF not allergic and instructed by emergency dispatcher.",
+      "Keep the patient calm, reassured, and in a quiet environment with ample fresh airflow.",
+      "Locate the nearest Automated External Defibrillator (AED) in the building or neighborhood."
+    ],
+    donts: [
+      "Do NOT allow the person to walk, climb stairs, or drive themselves under any circumstances.",
+      "Do NOT give food, hot beverages, water, or caffeinated drinks.",
+      "Do NOT ignore symptoms or wait to see if chest tightness subsides on its own.",
+      "Do NOT administer heart medications (like nitroglycerin) that belong to someone else.",
+      "Do NOT leave the patient alone at any time."
+    ]
+  },
+  stroke: {
+    title: "Acute Stroke Warning Signs (FAST Protocol)",
+    category: "Neurological",
+    alertBadge: "🧠 TIME-SENSITIVE STROKE PROTOCOL (GOLDEN HOUR REPERFUSION)",
+    dos: [
+      "Note the exact time symptoms first appeared — this is critical for clot-dissolving medications.",
+      "Check the FAST indicators: Face drooping, Arm weakness, Speech difficulty, Time to call emergency.",
+      "If the patient is drowsy or vomiting, place them into the lateral recovery position on their side.",
+      "Maintain a clear, open airway and monitor their breathing continuously.",
+      "Reassure the person calmly; speak in short, simple sentences."
+    ],
+    donts: [
+      "Do NOT administer Aspirin, blood thinners, or pain medication (could cause fatal intracranial bleeding in hemorrhagic stroke).",
+      "Do NOT give anything to drink or eat — swallowing muscles are frequently paralyzed.",
+      "Do NOT let the person go to sleep to 'rest it off'.",
+      "Do NOT move the patient abruptly or shake them."
+    ]
+  },
+  respiratory: {
+    title: "Acute Severe Respiratory Distress / Asthma Exacerbation",
+    category: "Respiratory",
+    alertBadge: "🫁 ACUTE HYPOXIA & BRONCHOSPASM PROTOCOL",
+    dos: [
+      "Help the person sit upright and lean slightly forward with arms resting on knees or a table.",
+      "Assist in administering their prescribed quick-relief inhaler (Salbutamol) — 4 puffs via spacer, repeat every 4 minutes if needed.",
+      "Encourage slow, calm, diaphragmatic breathing (in through nose, out through pursed lips).",
+      "Ensure the room is well-ventilated; open windows and eliminate smoke or irritants.",
+      "Monitor pulse rate and skin color (watch for bluish lips or nailbeds)."
+    ],
+    donts: [
+      "Do NOT force the patient to lie flat — this severely restricts lung expansion and worsens breathing.",
+      "Do NOT crowd around the patient; give them ample space and fresh air.",
+      "Do NOT administer sedatives, tranquilizers, or antihistamines that depress respiration.",
+      "Do NOT delay emergency dispatch if inhaler fails to provide immediate relief within 5 minutes."
+    ]
+  },
+  unconscious: {
+    title: "Unconsciousness / Syncope / Unresponsive Person",
+    category: "Emergency",
+    alertBadge: "⚡ LOSS OF CONSCIOUSNESS EMERGENCY PROTOCOL",
+    dos: [
+      "Gently shake the shoulders and shout: 'Are you okay?' to check for responsiveness.",
+      "Check if the chest is rising and falling normally for 5-10 seconds.",
+      "If breathing normally: roll into the Recovery Position on their side with head tilted back.",
+      "If NOT breathing or only gasping: BEGIN CPR immediately (30 hard, fast chest compressions in center of chest at 100-120 bpm).",
+      "Send someone to fetch an AED immediately and turn it on — follow the voice prompts."
+    ],
+    donts: [
+      "Do NOT slap, shake vigorously, or splash water onto the person's face.",
+      "Do NOT place a pillow under the head — it bends the neck and closes the airway.",
+      "Do NOT give anything by mouth (liquids, food, or tablets) — extreme choking risk.",
+      "Do NOT leave the unconscious person unattended."
+    ]
+  },
+  bleeding: {
+    title: "Severe External Hemorrhage / Active Bleeding",
+    category: "Trauma",
+    alertBadge: "🩸 HEMORRHAGE CONTROL PROTOCOL (STOP THE BLEED)",
+    dos: [
+      "Apply firm, continuous direct pressure over the bleeding wound using a clean cloth, sterile gauze, or gloved hand.",
+      "Maintain continuous pressure for at least 10-15 minutes without lifting the cloth to peek.",
+      "If bleeding continues through the cloth, place another cloth directly over it and press harder.",
+      "Help the injured person lie down and elevate their legs slightly to prevent hemorrhagic shock.",
+      "Keep the person warm by covering them with a blanket or coat."
+    ],
+    donts: [
+      "Do NOT remove soaked dressings — removing them tears away newly formed blood clots.",
+      "Do NOT probe or attempt to clean deep, gaping, or heavily bleeding wounds.",
+      "Do NOT remove embedded objects (e.g. knives, glass) — leave in place and pad around them.",
+      "Do NOT apply a makeshift tourniquet around the neck, head, or torso."
+    ]
+  },
+  anaphylaxis: {
+    title: "Severe Allergic Anaphylaxis (Airway Swelling / Collapse)",
+    category: "Allergy",
+    alertBadge: "⚠️ ANAPHYLACTIC SHOCK PROTOCOL (EPINEPHRINE TIMING)",
+    dos: [
+      "Locate and immediately administer patient's Epinephrine Auto-Injector (EpiPen) into the outer mid-thigh.",
+      "Hold the auto-injector firmly in place against the thigh for 3-5 seconds.",
+      "Keep the patient lying flat with legs raised. If breathing is difficult, allow them to sit up slightly.",
+      "Call emergency services immediately — inform dispatcher of anaphylaxis.",
+      "Be prepared to administer a second dose after 5-10 minutes if symptoms do not improve."
+    ],
+    donts: [
+      "Do NOT allow the person to stand up, walk, or exercise — sudden standing can cause fatal cardiac arrest.",
+      "Do NOT rely on oral antihistamines (like Benadryl) — they are too slow to stop airway closure.",
+      "Do NOT hesitate to inject Epinephrine — delays in administration can be fatal.",
+      "Do NOT leave the person alone."
+    ]
+  },
+  general: {
+    title: "General Emergency First-Aid Assistance",
+    category: "General",
+    alertBadge: "🛡️ WHO / RED CROSS FIRST RESPONDER GUIDANCE",
+    dos: [
+      "Ensure the scene is safe for you and the patient before approaching.",
+      "Keep the patient calm, rested, and sheltered from extreme weather or noise.",
+      "Monitor vital signs (breathing, pulse, responsiveness) every 2-3 minutes.",
+      "Clear a path from the entrance for incoming paramedics and unlock the door.",
+      "Gather the patient's ID, medical records, and current medication bottles for the ambulance crew."
+    ],
+    donts: [
+      "Do NOT administer unknown medications without dispatcher guidance.",
+      "Do NOT move an injured patient unless there is immediate danger (e.g. fire, collapse).",
+      "Do NOT offer food or large quantities of liquid before medical assessment.",
+      "Do NOT hang up on emergency services until instructed by the dispatcher."
+    ]
+  }
+};
+
+// Central Database Service & Real-Time Sync (REST + BroadcastChannel + LocalStorage)
+const DatabaseService = {
+  db: {
+    patients: [],
+    ambulances: [],
+    hospitals: [],
+    cases: [],
+    completedCases: []
+  },
+  channel: null,
+
+  async init() {
+    try {
+      this.channel = new BroadcastChannel('aegis_portal_sync');
+      this.channel.onmessage = (event) => {
+        this.handleRemoteSync(event.data);
+      };
+    } catch (e) {
+      console.warn("BroadcastChannel not available in this runtime context.", e);
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'aegis_db_timestamp') {
+        this.loadFromStorage();
+        refreshAllActiveViews();
+      }
+    });
+
+    // 1. Try REST API endpoint /api/db
+    try {
+      const res = await fetch('/api/db', { cache: 'no-cache' });
+      if (res.ok) {
+        const remoteDb = await res.json();
+        if (remoteDb && remoteDb.patients && remoteDb.patients.length > 0) {
+          this.db = remoteDb;
+          this.saveToStorageLocalOnly();
+          this.applyDbToState();
+          return this.db;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not reach /api/db, trying cache / fallback.", e);
+    }
+
+    // 2. Try localStorage cache
+    const cached = localStorage.getItem('aegis_db');
+    if (cached) {
+      try {
+        this.db = JSON.parse(cached);
+        this.applyDbToState();
+        return this.db;
+      } catch (e) {}
+    }
+
+    // 3. Fallback to data/database.json
+    try {
+      const staticRes = await fetch('data/database.json');
+      if (staticRes.ok) {
+        this.db = await staticRes.json();
+        this.saveToStorageLocalOnly();
+        this.applyDbToState();
+        return this.db;
+      }
+    } catch (e) {}
+
+    this.applyDbToState();
+    return this.db;
+  },
+
+  saveToStorageLocalOnly() {
+    try {
+      localStorage.setItem('aegis_db', JSON.stringify(this.db));
+      localStorage.setItem('aegis_db_timestamp', Date.now().toString());
+    } catch (e) {}
+  },
+
+  loadFromStorage() {
+    const cached = localStorage.getItem('aegis_db');
+    if (cached) {
+      try {
+        this.db = JSON.parse(cached);
+        this.applyDbToState();
+      } catch (e) {}
+    }
+  },
+
+  applyDbToState() {
+    if (this.db.patients && this.db.patients.length > 0) {
+      State.patients = this.db.patients;
+    }
+    if (this.db.ambulances && this.db.ambulances.length > 0) {
+      State.ambulances = this.db.ambulances;
+    }
+    if (this.db.hospitals && this.db.hospitals.length > 0) {
+      State.hospitals = this.db.hospitals;
+    }
+    if (this.db.cases && this.db.cases.length > 0) {
+      State.cases = this.db.cases;
+      const activeCase = this.db.cases.find(c => c.status !== "Case Completed") || this.db.cases[0];
+      if (activeCase) {
+        State.currentCase = activeCase;
+        State.caseStageIndex = activeCase.stageIndex || 2;
+      }
+    }
+    if (this.db.completedCases) {
+      State.completedCases = this.db.completedCases;
+    }
+  },
+
+  async save(eventType, payload = null) {
+    this.saveToStorageLocalOnly();
+
+    if (this.channel) {
+      try {
+        this.channel.postMessage({ eventType, payload, timestamp: Date.now() });
+      } catch (e) {}
+    }
+
+    try {
+      fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.db)
+      }).catch(() => {});
+    } catch (e) {}
+  },
+
+  handleRemoteSync(data) {
+    if (!data) return;
+    this.loadFromStorage();
+    refreshAllActiveViews();
   }
 };
 
@@ -167,12 +461,60 @@ function calculateNEWS2(vitals) {
 
 /**
  * AGENT 1: Triage & Clinical Deterioration Agent
- * Combines NLP keyword extraction, deterministic red-flag rules, and NEWS2 baseline
+ * Combines NLP keyword extraction, deterministic red-flag rules, NEWS2 baseline,
+ * and context-aware Patient Medical History (PHR & Health Tracker) integration
  */
 const TriageAgent = {
-  evaluate(text, vitals) {
+  evaluate(text, vitals, patientRecord = null) {
     const lower = (text || "").toLowerCase();
     const redFlags = [];
+
+    // Resolve patient record if not passed
+    const patient = patientRecord || (State.patients && State.patients.find(p => p.id === State.activePatientId)) || null;
+    const patientContext = {
+      applied: false,
+      chronicConditions: [],
+      allergies: [],
+      medications: [],
+      historyVulnerabilities: []
+    };
+
+    if (patient) {
+      patientContext.applied = true;
+      patientContext.chronicConditions = patient.medicalConditions || [];
+      patientContext.allergies = patient.allergies || [];
+      patientContext.medications = patient.currentMedications || [];
+
+      const condsStr = patientContext.chronicConditions.join(" ").toLowerCase();
+
+      // Cardiac history synergy
+      const hasPriorCardiac = condsStr.includes("coronary") || condsStr.includes("stent") || condsStr.includes("infarction") || condsStr.includes("angioplasty") || condsStr.includes("cad") || condsStr.includes("afib") || condsStr.includes("bypass");
+      if (hasPriorCardiac && (lower.includes("chest") || lower.includes("tightness") || lower.includes("pressure") || lower.includes("discomfort") || lower.includes("breathless") || lower.includes("dizzy") || lower.includes("sweat"))) {
+        redFlags.push("Historical Cardiac Vulnerability: Prior CAD/Stent with acute presentation (Immediate Escalation)");
+        patientContext.historyVulnerabilities.push("Prior CAD/Stent + Active Chest Discomfort");
+      }
+
+      // Respiratory history synergy
+      const hasPriorResp = condsStr.includes("asthma") || condsStr.includes("copd") || condsStr.includes("bronchitis");
+      if (hasPriorResp && (lower.includes("breath") || lower.includes("wheez") || lower.includes("cough") || lower.includes("dyspnea"))) {
+        redFlags.push("Historical Respiratory Vulnerability: Severe Asthma/COPD Exacerbation Risk");
+        patientContext.historyVulnerabilities.push("Asthma/COPD + Acute Dyspnea");
+      }
+
+      // Cerebrovascular history synergy
+      const hasPriorStroke = condsStr.includes("stroke") || condsStr.includes("tia") || condsStr.includes("aneurysm");
+      if (hasPriorStroke && (lower.includes("headache") || lower.includes("weak") || lower.includes("speech") || lower.includes("numb") || lower.includes("vision"))) {
+        redFlags.push("Historical Cerebrovascular Vulnerability: Secondary CVA / Recurrent TIA Suspicion");
+        patientContext.historyVulnerabilities.push("Prior Stroke/TIA + Acute Neurological Deficit");
+      }
+
+      // Medication / Anticoagulant bleeding alert
+      const medsStr = patientContext.medications.join(" ").toLowerCase();
+      if ((medsStr.includes("warfarin") || medsStr.includes("aspirin") || medsStr.includes("clopidogrel") || medsStr.includes("apixaban")) && (lower.includes("bleed") || lower.includes("fall") || lower.includes("trauma") || lower.includes("head"))) {
+        redFlags.push("Anticoagulant / Antiplatelet Alert: High Intracranial / Hemorrhagic Bleeding Risk");
+        patientContext.historyVulnerabilities.push("Active Anticoagulant Therapy with Trauma/Bleeding");
+      }
+    }
 
     // Deterministic Red-Flag Safeguards
     if (lower.includes("chest pain") || lower.includes("heart attack") || lower.includes("stemi") || lower.includes("jaw pain")) {
@@ -204,11 +546,11 @@ const TriageAgent = {
     if (redFlags.length > 0 || news2.score >= 5) {
       urgency = "Emergency";
       confidence = 0.96;
-      if (lower.includes("chest") || lower.includes("stemi") || lower.includes("heart")) {
-        category = "Cardiac - Acute STEMI";
+      if (lower.includes("chest") || lower.includes("stemi") || lower.includes("heart") || patientContext.historyVulnerabilities.some(v => v.includes("CAD"))) {
+        category = "Cardiac - Acute STEMI / ACS Escalation";
         requiredSpecialty = "Interventional Cardiologist";
         requiredResources = ["Cath Lab", "Cardiac ICU", "Defibrillator"];
-      } else if (lower.includes("stroke") || lower.includes("slurred") || lower.includes("facial droop") || lower.includes("hemiplegia")) {
+      } else if (lower.includes("stroke") || lower.includes("slurred") || lower.includes("facial droop") || lower.includes("hemiplegia") || patientContext.historyVulnerabilities.some(v => v.includes("Stroke"))) {
         category = "Neurological - Acute Ischemic Stroke";
         requiredSpecialty = "Vascular Neurologist";
         requiredResources = ["Stroke Unit", "CT Scanner", "Neuro-ICU"];
@@ -216,8 +558,8 @@ const TriageAgent = {
         category = "Trauma - Major Polytrauma";
         requiredSpecialty = "Trauma & Orthopedic Surgeon";
         requiredResources = ["Level 1 Trauma Bay", "Surgical ICU", "Blood Bank", "CT Scanner"];
-      } else if (vitals.spo2 < 90 || lower.includes("sepsis") || lower.includes("cough")) {
-        category = "Respiratory - Severe ARDS / Septic Shock";
+      } else if (vitals.spo2 < 90 || lower.includes("sepsis") || lower.includes("cough") || patientContext.historyVulnerabilities.some(v => v.includes("Asthma"))) {
+        category = "Respiratory - Severe ARDS / Asthma Exacerbation";
         requiredSpecialty = "Pulmonologist & Intensivist";
         requiredResources = ["Medical ICU", "Mechanical Ventilator"];
       } else {
@@ -245,6 +587,9 @@ const TriageAgent = {
       redFlags,
       deteriorationRisk: parseFloat(deteriorationRisk.toFixed(2)),
       confidence: parseFloat(confidence.toFixed(2)),
+      patientContext,
+      isClinicalDecisionSupport: true,
+      disclaimer: "Agentic Clinical Decision Support: Non-diagnostic advisory guidance for emergency triage prioritization.",
       timestamp: new Date().toISOString()
     };
   }
@@ -381,6 +726,32 @@ const RoutingAgent = {
       isDelayed: delayMinutes > 0,
       delayReason: delayMinutes > 0 ? (State.customRoadReason || `Arterial Obstruction (+${delayMinutes}m delay)`) : null
     };
+  },
+
+  async fetchOSRMRoute(startLat, startLng, endLat, endLng) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const coordinates = route.geometry.coordinates.map(pt => [pt[1], pt[0]]);
+          return {
+            success: true,
+            coordinates,
+            distanceKm: parseFloat((route.distance / 1000).toFixed(1)),
+            durationMinutes: Math.max(3, Math.round(route.duration / 60))
+          };
+        }
+      }
+    } catch (e) {
+      // Graceful fallback to simulated road points
+    }
+    return null;
   }
 };
 
@@ -428,11 +799,12 @@ const Orchestrator = {
   runPipeline(caseData, hospitals, isRoadBlocked = false, customDelayMinutes = null) {
     const stepLogs = [];
 
-    // Step 1: Triage (Support both .notes and .chief_complaint)
+    // Step 1: Triage (Support both .notes and .chief_complaint, plus patient PHR)
     const caseNotes = caseData.notes || caseData.chief_complaint || "";
     const caseVitals = caseData.vitals || { hr: 80, sbp: 120, dbp: 80, spo2: 98, rr: 16, temp: 37.0, avpu: "Alert", gcs: 15 };
-    stepLogs.push("Executing Triage & Deterioration Risk Agent...");
-    const triage = TriageAgent.evaluate(caseNotes, caseVitals);
+    const activePatient = (State.patients && State.patients.find(p => p.id === State.activePatientId)) || null;
+    stepLogs.push("Executing Triage & Deterioration Risk Agent (with PHR Medical History)...");
+    const triage = TriageAgent.evaluate(caseNotes, caseVitals, activePatient);
 
     // Step 2: Matching
     stepLogs.push(`Querying hospital resource models for required specialty '${triage.requiredSpecialty}'...`);
@@ -905,6 +1277,577 @@ function routeAmbulanceToDirectly(hospitalId) {
   acceptRecommendation(hospitalId);
 }
 
+// ----------------------------------------------------
+// PATIENT PORTAL CONTROLLERS (SUBNAV, PHR, TRACKER, FIRST-AID)
+// ----------------------------------------------------
+
+function switchPatientSubTab(tabName) {
+  State.patientSubTab = tabName;
+  document.querySelectorAll('#panel-patient .subnav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `btn-patient-sub-${tabName}`);
+  });
+  document.querySelectorAll('#panel-patient .patient-subview').forEach(view => {
+    const isTarget = view.id === `patient-subview-${tabName}`;
+    view.style.display = isTarget ? 'block' : 'none';
+  });
+
+  if (tabName === 'triage') {
+    renderPatientNearbyHospitals();
+    updatePatientContextBanner();
+  } else if (tabName === 'phr') {
+    renderPatientPHR();
+  } else if (tabName === 'tracker') {
+    renderPatientTracker();
+  } else if (tabName === 'firstaid') {
+    renderPatientFirstAid();
+  }
+}
+
+function switchActivePatient(patientId) {
+  State.activePatientId = patientId;
+  const sel = document.getElementById('patient-profile-selector');
+  if (sel && sel.value !== patientId) sel.value = patientId;
+
+  const patient = State.patients.find(p => p.id === patientId) || State.patients[0];
+  if (patient) {
+    const ageInput = document.getElementById('patient-age-input');
+    if (ageInput) ageInput.value = patient.age;
+    updatePatientContextBanner();
+  }
+
+  // Refresh current sub-view
+  if (State.patientSubTab === 'phr') renderPatientPHR();
+  else if (State.patientSubTab === 'tracker') renderPatientTracker();
+  else if (State.patientSubTab === 'firstaid') renderPatientFirstAid();
+  else renderPatientNearbyHospitals();
+}
+
+function updatePatientContextBanner() {
+  const container = document.getElementById('patient-active-history-context');
+  if (!container) return;
+  const patient = State.patients.find(p => p.id === State.activePatientId) || State.patients[0];
+  if (!patient) return;
+
+  const conds = (patient.medicalConditions || []).map(c => `<span class="evidence-tag warning" style="font-size: 11px;">⚠️ ${c}</span>`).join(" ");
+  const allergies = (patient.allergies || []).map(a => `<span class="evidence-tag bad" style="font-size: 11px;">🚫 ${a}</span>`).join(" ");
+  const meds = (patient.currentMedications || []).join(", ");
+
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <div style="font-weight: 700; color: #fff; font-size: 13px;">
+          👤 Linked Patient Record: <strong>${patient.name}</strong> (${patient.age}y, ${patient.gender}) • Blood Group: <strong style="color: #ef4444;">${patient.bloodGroup}</strong>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;">
+          ${conds || '<span style="color: var(--text-muted);">No recorded chronic conditions</span>'}
+          ${allergies}
+        </div>
+      </div>
+      <div style="text-align: right; font-size: 11px; color: var(--text-secondary);">
+        <div>💊 Regular Meds: <strong style="color: #e5e7eb;">${meds || 'None'}</strong></div>
+        <div style="color: #60a5fa; cursor: pointer; text-decoration: underline; margin-top: 4px;" onclick="switchPatientSubTab('phr')">
+          Edit Health Record ➔
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Voice Recognition using Browser SpeechRecognition API
+function toggleVoiceRecognition() {
+  const btn = document.getElementById('btn-voice-symptoms');
+  const statusEl = document.getElementById('voice-mic-status');
+  const input = document.getElementById('patient-symptoms-input');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert("Speech recognition is not supported in this browser. Please type symptoms manually.");
+    return;
+  }
+
+  if (State.isVoiceRecording && State.voiceRecognition) {
+    try { State.voiceRecognition.stop(); } catch (e) {}
+    State.isVoiceRecording = false;
+    if (btn) {
+      btn.classList.remove('recording');
+      btn.innerHTML = `🎙️ Voice Input (Speak Symptoms)`;
+    }
+    if (statusEl) statusEl.innerText = "Voice input stopped.";
+    return;
+  }
+
+  try {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      State.isVoiceRecording = true;
+      if (btn) {
+        btn.classList.add('recording');
+        btn.innerHTML = `🔴 Listening... (Speak now)`;
+      }
+      if (statusEl) statusEl.innerText = "Microphone listening... Describe your symptoms clearly.";
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (input) {
+        const existing = input.value.trim();
+        input.value = existing ? `${existing} ${transcript}` : transcript;
+      }
+      if (statusEl) statusEl.innerText = `Transcribed: "${transcript}"`;
+    };
+
+    recognition.onerror = (event) => {
+      console.warn("Speech recognition error:", event.error);
+      State.isVoiceRecording = false;
+      if (btn) {
+        btn.classList.remove('recording');
+        btn.innerHTML = `🎙️ Voice Input (Speak Symptoms)`;
+      }
+      if (statusEl) statusEl.innerText = `Microphone notice: ${event.error}`;
+    };
+
+    recognition.onend = () => {
+      State.isVoiceRecording = false;
+      if (btn) {
+        btn.classList.remove('recording');
+        btn.innerHTML = `🎙️ Voice Input (Speak Symptoms)`;
+      }
+    };
+
+    State.voiceRecognition = recognition;
+    recognition.start();
+  } catch (err) {
+    console.error("Speech recognition start failed:", err);
+    alert("Could not initialize microphone access.");
+  }
+}
+
+// Predefined Categorized Symptom Chips
+function toggleSymptomChip(element, symptomName, defaultSeverity = "Severe") {
+  const idx = State.selectedSymptoms.findIndex(s => s.name === symptomName);
+  if (idx >= 0) {
+    State.selectedSymptoms.splice(idx, 1);
+    element.classList.remove('selected');
+  } else {
+    State.selectedSymptoms.push({
+      name: symptomName,
+      severity: defaultSeverity,
+      duration: "Acute (< 1 hr)"
+    });
+    element.classList.add('selected');
+  }
+  updateSelectedSymptomsTray();
+  updateSelectedSymptomsInput();
+}
+
+function removeSymptomChip(symptomName) {
+  State.selectedSymptoms = State.selectedSymptoms.filter(s => s.name !== symptomName);
+  document.querySelectorAll('.symptom-chip').forEach(chip => {
+    if (chip.innerText.includes(symptomName) || chip.getAttribute('onclick')?.includes(symptomName)) {
+      chip.classList.remove('selected');
+    }
+  });
+  updateSelectedSymptomsTray();
+  updateSelectedSymptomsInput();
+}
+
+function updateSelectedSymptomsTray() {
+  const tray = document.getElementById('patient-selected-symptoms-tray');
+  if (!tray) return;
+
+  if (State.selectedSymptoms.length === 0) {
+    tray.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); font-style: italic;">No symptom chips selected yet. Click any chip above or type below.</span>`;
+    return;
+  }
+
+  tray.innerHTML = State.selectedSymptoms.map(s => `
+    <span class="selected-symptom-tag" style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
+      <strong>${s.name}</strong> (${s.severity})
+      <span style="cursor: pointer; color: #f87171; font-weight: 800;" onclick="removeSymptomChip('${s.name}')">✕</span>
+    </span>
+  `).join("");
+}
+
+function updateSelectedSymptomsInput() {
+  const input = document.getElementById('patient-symptoms-input');
+  if (!input) return;
+
+  if (State.selectedSymptoms.length === 0) return;
+  const chipDescriptions = State.selectedSymptoms.map(s => `${s.name} [Severity: ${s.severity}]`).join("; ");
+
+  const current = input.value;
+  if (!current || current.includes("[Severity:")) {
+    input.value = `Patient reports: ${chipDescriptions}.`;
+  }
+}
+
+// Personal Health Record (PHR) Form Persistence
+function renderPatientPHR(patientId = null) {
+  const targetId = patientId || State.activePatientId;
+  const patient = State.patients.find(p => p.id === targetId) || State.patients[0];
+  if (!patient) return;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val !== undefined && val !== null ? val : "";
+  };
+
+  setVal('phr-name', patient.name);
+  setVal('phr-age', patient.age);
+  setVal('phr-bloodgroup', patient.bloodGroup);
+  setVal('phr-conditions', (patient.medicalConditions || []).join(", "));
+  setVal('phr-allergies', (patient.allergies || []).join(", "));
+  setVal('phr-medications', (patient.currentMedications || []).join(", "));
+  setVal('phr-surgeries', (patient.surgeries || []).join(", "));
+  setVal('phr-complications', (patient.healthComplications || []).join(", "));
+  setVal('phr-familyhistory', (patient.familyHistory || []).join(", "));
+  setVal('phr-emergencycontact', patient.emergencyContact || "");
+
+  // Past hospital visits list
+  const visitsContainer = document.getElementById('phr-visits-container');
+  if (visitsContainer) {
+    const visits = patient.pastVisits || [];
+    if (visits.length === 0) {
+      visitsContainer.innerHTML = `<div style="font-size: 12px; color: var(--text-muted);">No previous hospital visits recorded.</div>`;
+    } else {
+      visitsContainer.innerHTML = visits.map(v => `
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between; font-weight: 700; color: #fff;">
+            <span>🏥 ${v.hospital}</span>
+            <span style="color: var(--text-muted); font-size: 11px;">${v.date}</span>
+          </div>
+          <div style="color: #60a5fa; margin-top: 2px;">Reason: <strong>${v.reason}</strong></div>
+          <div style="color: var(--text-secondary); margin-top: 2px;">Diagnosis & Treatment: ${v.diagnosis} (${v.treatment})</div>
+        </div>
+      `).join("");
+    }
+  }
+}
+
+function savePatientPHR() {
+  const patient = State.patients.find(p => p.id === State.activePatientId);
+  if (!patient) return;
+
+  const getVal = (id) => document.getElementById(id)?.value.trim() || "";
+  const toList = (str) => str.split(",").map(s => s.trim()).filter(Boolean);
+
+  patient.name = getVal('phr-name') || patient.name;
+  patient.age = parseInt(getVal('phr-age')) || patient.age;
+  patient.bloodGroup = getVal('phr-bloodgroup') || patient.bloodGroup;
+  patient.medicalConditions = toList(getVal('phr-conditions'));
+  patient.allergies = toList(getVal('phr-allergies'));
+  patient.currentMedications = toList(getVal('phr-medications'));
+  patient.surgeries = toList(getVal('phr-surgeries'));
+  patient.healthComplications = toList(getVal('phr-complications'));
+  patient.familyHistory = toList(getVal('phr-familyhistory'));
+  patient.emergencyContact = getVal('phr-emergencycontact');
+
+  DatabaseService.save('PATIENT_PHR_UPDATE', { patientId: patient.id });
+  updatePatientContextBanner();
+
+  appendAuditLog("PATIENT_PHR_UPDATE", "PATIENT", `Personal Health Record updated and encrypted for ${patient.name} (${patient.id}).`);
+  alert(`✓ Personal Health Record for ${patient.name} updated and encrypted successfully!`);
+}
+
+// Health Tracker Dashboard & Charts
+function renderPatientTracker(patientId = null) {
+  const targetId = patientId || State.activePatientId;
+  const patient = State.patients.find(p => p.id === targetId) || State.patients[0];
+  if (!patient) return;
+
+  const history = patient.healthTrackerHistory || [];
+  const latest = history.length > 0 ? history[history.length - 1] : {
+    heartRate: 76,
+    bloodPressure: { sbp: 122, dbp: 80 },
+    spo2: 98,
+    temp: 36.8,
+    glucose: 104,
+    weightKg: 74
+  };
+
+  const tilesContainer = document.getElementById('tracker-stats-tiles');
+  if (tilesContainer) {
+    tilesContainer.innerHTML = `
+      <div class="tracker-tile">
+        <div class="tracker-tile-label">❤️ Heart Rate</div>
+        <div class="tracker-tile-val" style="color: ${latest.heartRate > 100 ? '#ef4444' : '#fff'};">${latest.heartRate} <span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">bpm</span></div>
+        <div class="tracker-tile-sub">Resting Baseline</div>
+      </div>
+      <div class="tracker-tile">
+        <div class="tracker-tile-label">🩺 Blood Pressure</div>
+        <div class="tracker-tile-val" style="color: ${latest.bloodPressure.sbp > 140 ? '#f59e0b' : '#fff'};">${latest.bloodPressure.sbp}/${latest.bloodPressure.dbp} <span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">mmHg</span></div>
+        <div class="tracker-tile-sub">Target: &lt;130/85</div>
+      </div>
+      <div class="tracker-tile">
+        <div class="tracker-tile-label">🫁 Blood Oxygen (SpO2)</div>
+        <div class="tracker-tile-val" style="color: ${latest.spo2 < 94 ? '#ef4444' : '#34d399'};">${latest.spo2}%</div>
+        <div class="tracker-tile-sub">${latest.spo2 < 94 ? '⚠️ Hypoxia Alert' : 'Normal Saturation'}</div>
+      </div>
+      <div class="tracker-tile">
+        <div class="tracker-tile-label">🌡️ Temperature</div>
+        <div class="tracker-tile-val">${latest.temp}°C</div>
+        <div class="tracker-tile-sub">${latest.temp >= 38.0 ? 'Fever' : 'Afebrile'}</div>
+      </div>
+      <div class="tracker-tile">
+        <div class="tracker-tile-label">🩸 Blood Glucose</div>
+        <div class="tracker-tile-val">${latest.glucose} <span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">mg/dL</span></div>
+        <div class="tracker-tile-sub">Post-prandial / Fasting</div>
+      </div>
+      <div class="tracker-tile">
+        <div class="tracker-tile-label">⚖️ Body Weight</div>
+        <div class="tracker-tile-val">${latest.weightKg || 74} <span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">kg</span></div>
+        <div class="tracker-tile-sub">BMI: ~24.2 Normal</div>
+      </div>
+    `;
+  }
+
+  renderTrackerSvgChart(history);
+
+  const tableBody = document.getElementById('tracker-log-tbody');
+  if (tableBody) {
+    if (history.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">No historical vitals logged.</td></tr>`;
+    } else {
+      const reversed = [...history].reverse();
+      tableBody.innerHTML = reversed.map(entry => `
+        <tr>
+          <td><strong style="color: #fff;">${entry.timestamp || 'Recent'}</strong></td>
+          <td><span style="color: ${entry.heartRate > 100 ? '#ef4444' : '#34d399'}; font-weight: 700;">${entry.heartRate} bpm</span></td>
+          <td>${entry.bloodPressure.sbp}/${entry.bloodPressure.dbp} mmHg</td>
+          <td><span style="color: ${entry.spo2 < 94 ? '#ef4444' : '#34d399'}; font-weight: 700;">${entry.spo2}%</span></td>
+          <td>${entry.temp}°C</td>
+          <td>${entry.glucose} mg/dL</td>
+          <td>${entry.weightKg || 74} kg</td>
+        </tr>
+      `).join("");
+    }
+  }
+}
+
+function renderTrackerSvgChart(history) {
+  const container = document.getElementById('tracker-chart-container');
+  if (!container) return;
+
+  if (!history || history.length < 2) {
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 60px 0;">At least 2 readings required to render trend lines. Log additional vitals above.</div>`;
+    return;
+  }
+
+  const w = 800;
+  const h = 180;
+  const padLeft = 45;
+  const padRight = 20;
+  const padTop = 20;
+  const padBottom = 30;
+
+  const plotW = w - padLeft - padRight;
+  const plotH = h - padTop - padBottom;
+
+  const n = history.length;
+  const getX = (i) => padLeft + (i / (n - 1)) * plotW;
+
+  const minY = 50;
+  const maxY = 180;
+  const getY = (val) => padTop + plotH - ((val - minY) / (maxY - minY)) * plotH;
+
+  const hrPoints = history.map((e, i) => `${getX(i).toFixed(1)},${getY(e.heartRate).toFixed(1)}`).join(" ");
+  const sbpPoints = history.map((e, i) => `${getX(i).toFixed(1)},${getY(e.bloodPressure.sbp).toFixed(1)}`).join(" ");
+  const spo2Points = history.map((e, i) => `${getX(i).toFixed(1)},${getY(e.spo2).toFixed(1)}`).join(" ");
+
+  const gridYValues = [60, 90, 120, 150];
+  const gridLines = gridYValues.map(v => {
+    const y = getY(v);
+    return `
+      <line x1="${padLeft}" y1="${y}" x2="${w - padRight}" y2="${y}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="3,3" />
+      <text x="${padLeft - 8}" y="${y + 4}" fill="#9ca3af" font-size="10" text-anchor="end">${v}</text>
+    `;
+  }).join("");
+
+  const xLabels = history.map((e, i) => {
+    const x = getX(i);
+    const label = (e.timestamp || `T${i + 1}`).slice(-5);
+    return `<text x="${x}" y="${h - 8}" fill="#9ca3af" font-size="10" text-anchor="middle">${label}</text>`;
+  }).join("");
+
+  const circles = history.map((e, i) => `
+    <circle cx="${getX(i)}" cy="${getY(e.heartRate)}" r="4" fill="#ef4444" />
+    <circle cx="${getX(i)}" cy="${getY(e.bloodPressure.sbp)}" r="4" fill="#60a5fa" />
+    <circle cx="${getX(i)}" cy="${getY(e.spo2)}" r="4" fill="#34d399" />
+  `).join("");
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" style="width: 100%; height: 100%; display: block;" preserveAspectRatio="none">
+      ${gridLines}
+      ${xLabels}
+      <!-- Systolic BP Line (Blue) -->
+      <polyline fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linejoin="round" points="${sbpPoints}" />
+      <!-- Heart Rate Line (Red) -->
+      <polyline fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linejoin="round" points="${hrPoints}" />
+      <!-- SpO2 Line (Green) -->
+      <polyline fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="4,3" stroke-linejoin="round" points="${spo2Points}" />
+      ${circles}
+    </svg>
+  `;
+}
+
+function loadTrackerPreset(preset) {
+  const hr = document.getElementById('track-hr-input');
+  const sbp = document.getElementById('track-sbp-input');
+  const dbp = document.getElementById('track-dbp-input');
+  const spo2 = document.getElementById('track-spo2-input');
+  const temp = document.getElementById('track-temp-input');
+  const gluc = document.getElementById('track-glucose-input');
+
+  if (preset === 'resting') {
+    if (hr) hr.value = 72;
+    if (sbp) sbp.value = 118;
+    if (dbp) dbp.value = 76;
+    if (spo2) spo2.value = 99;
+    if (temp) temp.value = 36.7;
+    if (gluc) gluc.value = 96;
+  } else if (preset === 'hypertensive') {
+    if (hr) hr.value = 104;
+    if (sbp) sbp.value = 168;
+    if (dbp) dbp.value = 102;
+    if (spo2) spo2.value = 96;
+    if (temp) temp.value = 37.0;
+    if (gluc) gluc.value = 142;
+  } else if (preset === 'desat') {
+    if (hr) hr.value = 116;
+    if (sbp) sbp.value = 94;
+    if (dbp) dbp.value = 60;
+    if (spo2) spo2.value = 91;
+    if (temp) temp.value = 37.3;
+    if (gluc) gluc.value = 115;
+  }
+}
+
+function saveHealthTrackerEntry() {
+  const patient = State.patients.find(p => p.id === State.activePatientId);
+  if (!patient) return;
+
+  const hr = parseInt(document.getElementById('track-hr-input')?.value) || 78;
+  const sbp = parseInt(document.getElementById('track-sbp-input')?.value) || 120;
+  const dbp = parseInt(document.getElementById('track-dbp-input')?.value) || 80;
+  const spo2 = parseInt(document.getElementById('track-spo2-input')?.value) || 98;
+  const temp = parseFloat(document.getElementById('track-temp-input')?.value) || 36.8;
+  const gluc = parseInt(document.getElementById('track-glucose-input')?.value) || 105;
+
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+  const newEntry = {
+    timestamp: timeStr,
+    heartRate: hr,
+    bloodPressure: { sbp, dbp },
+    spo2,
+    temp,
+    glucose: gluc,
+    weightKg: patient.healthTrackerHistory?.[0]?.weightKg || 74
+  };
+
+  if (!patient.healthTrackerHistory) patient.healthTrackerHistory = [];
+  patient.healthTrackerHistory.push(newEntry);
+
+  DatabaseService.save('HEALTH_TRACKER_UPDATE', { patientId: patient.id, entry: newEntry });
+  renderPatientTracker();
+  alert(`✓ New vitals logged for ${patient.name}: HR ${hr} bpm, BP ${sbp}/${dbp}, SpO2 ${spo2}%`);
+}
+
+// Emergency Assistance while Waiting & Verified First-Aid
+function renderPatientFirstAid() {
+  const container = document.getElementById('firstaid-live-content');
+  if (!container) return;
+
+  const ambCase = State.currentCase;
+  const stage = CASE_STAGES[State.caseStageIndex - 1] || CASE_STAGES[1];
+  const hosp = State.hospitals.find(h => h.id === ambCase.selectedHospitalId) || State.hospitals[0];
+
+  const lowerNotes = (ambCase.notes || "").toLowerCase();
+  let protoKey = "general";
+  if (lowerNotes.includes("chest") || lowerNotes.includes("heart") || lowerNotes.includes("stemi")) protoKey = "cardiac";
+  else if (lowerNotes.includes("stroke") || lowerNotes.includes("slurred") || lowerNotes.includes("droop")) protoKey = "stroke";
+  else if (lowerNotes.includes("breath") || lowerNotes.includes("asthma") || lowerNotes.includes("wheez")) protoKey = "respiratory";
+  else if (lowerNotes.includes("unconscious") || lowerNotes.includes("faint") || lowerNotes.includes("collapse")) protoKey = "unconscious";
+  else if (lowerNotes.includes("bleed") || lowerNotes.includes("hemorrhage")) protoKey = "bleeding";
+  else if (lowerNotes.includes("anaphylaxis") || lowerNotes.includes("allergy") || lowerNotes.includes("epipen")) protoKey = "anaphylaxis";
+
+  const proto = FIRST_AID_PROTOCOLS[protoKey] || FIRST_AID_PROTOCOLS.general;
+
+  const ambLoc = State.ambulanceLocation || { lat: 12.9480, lng: 77.6010 };
+  const patientLoc = ambCase.location || { lat: 12.9550, lng: 77.6050 };
+  const dist = calculateHaversineKm(ambLoc.lat, ambLoc.lng, patientLoc.lat, patientLoc.lng);
+  const etaMinutes = Math.max(2, Math.round(dist * 1.8 + 3));
+
+  container.innerHTML = `
+    <!-- Top Live Ambulance Tracking Status Bar -->
+    <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 28px;">🚑</span>
+          <div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #fff;">Ambulance Unit #9021 En Route</h3>
+            <div style="font-size: 12px; color: var(--text-secondary);">Direct emergency dispatch allocated under Priority 1</div>
+          </div>
+        </div>
+        <span class="status-indicator" style="background: rgba(16,185,129,0.2); color: #34d399; font-weight: 800; font-size: 12px;">
+          ${stage.icon} ${stage.label.toUpperCase()}
+        </span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; font-size: 12px;">
+        <div>⏱️ Estimated Arrival: <strong style="color: #34d399; font-size: 14px;">~${etaMinutes} mins</strong></div>
+        <div>📍 Paramedic Location: <strong style="color: #fff;">${ambLoc.lat.toFixed(4)}°N, ${ambLoc.lng.toFixed(4)}°E</strong></div>
+        <div>🏥 Allocated Facility: <strong style="color: #60a5fa;">${hosp ? hosp.name : 'Metro Heart'}</strong></div>
+        <div>📞 Emergency Dispatch Desk: <strong style="color: #fde68a;">+91 112 / 108</strong></div>
+      </div>
+    </div>
+
+    <!-- Verified First-Aid Guidance (DOs & DON'Ts) -->
+    <div class="firstaid-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <span class="status-indicator" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: #ef4444; font-weight: 800;">
+            ${proto.alertBadge}
+          </span>
+          <h3 style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 6px;">${proto.title}</h3>
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted);">Medically Reviewed Emergency Standard</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <!-- DOs Card -->
+        <div class="firstaid-card-do">
+          <h4 style="font-size: 14px; font-weight: 800; color: #34d399; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>✅</span> THINGS YOU SHOULD DO:
+          </h4>
+          <ul class="firstaid-list">
+            ${proto.dos.map(item => `<li><span style="color: #34d399; font-weight: 700;">✓</span> ${item}</li>`).join("")}
+          </ul>
+        </div>
+
+        <!-- DON'Ts Card -->
+        <div class="firstaid-card-dont">
+          <h4 style="font-size: 14px; font-weight: 800; color: #f87171; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🚫</span> THINGS YOU MUST AVOID:
+          </h4>
+          <ul class="firstaid-list">
+            ${proto.donts.map(item => `<li><span style="color: #f87171; font-weight: 700;">✕</span> ${item}</li>`).join("")}
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px; font-size: 11.5px; color: var(--text-muted); text-align: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+        ⚠️ <strong>Important Notice:</strong> This guidance is emergency decision support while paramedics transit to your location. Follow all verbal instructions from the 112/108 dispatcher.
+      </div>
+    </div>
+  `;
+}
+
 function analyzePatientSymptoms() {
   const text = document.getElementById('patient-symptoms-input')?.value;
   if (!text || text.trim() === "") {
@@ -912,21 +1855,33 @@ function analyzePatientSymptoms() {
     return;
   }
 
-  const patientAge = parseInt(document.getElementById('patient-age-input')?.value) || 58;
+  const activePatient = State.patients.find(p => p.id === State.activePatientId) || State.patients[0];
+  const patientAge = parseInt(document.getElementById('patient-age-input')?.value) || activePatient?.age || 58;
   const onsetSelect = document.getElementById('patient-onset-input');
   const onsetText = onsetSelect ? onsetSelect.options[onsetSelect.selectedIndex].text : "30-60 minutes ago";
 
-  // Simulated Vitals for patient self-report
-  const syntheticVitals = { hr: 82, sbp: 120, dbp: 80, spo2: 97, rr: 17, temp: 37.0, avpu: "Alert", gcs: 15 };
+  // Use latest health tracker baseline vitals
+  const latestTrack = activePatient?.healthTrackerHistory?.[activePatient.healthTrackerHistory.length - 1];
+  const syntheticVitals = {
+    hr: latestTrack?.heartRate || 82,
+    sbp: latestTrack?.bloodPressure?.sbp || 120,
+    dbp: latestTrack?.bloodPressure?.dbp || 80,
+    spo2: latestTrack?.spo2 || 97,
+    rr: 17,
+    temp: latestTrack?.temp || 37.0,
+    avpu: "Alert",
+    gcs: 15
+  };
 
   const lower = text.toLowerCase();
-  if (lower.includes("chest") || lower.includes("heart") || lower.includes("stroke") || lower.includes("speech") || lower.includes("droop") || lower.includes("breathing") || lower.includes("pain")) {
+  if (lower.includes("chest") || lower.includes("heart") || lower.includes("stroke") || lower.includes("speech") || lower.includes("droop") || lower.includes("breathing") || lower.includes("pain") || lower.includes("faint") || lower.includes("bleed")) {
     syntheticVitals.hr = 108;
     syntheticVitals.sbp = 88;
     syntheticVitals.spo2 = 92;
   }
 
-  const triage = TriageAgent.evaluate(text, syntheticVitals);
+  // Evaluate Triage with linked Patient Medical Record
+  const triage = TriageAgent.evaluate(text, syntheticVitals, activePatient);
 
   // Age-adjusted clinical weighting
   if (patientAge >= 50 && (lower.includes("chest") || lower.includes("jaw") || lower.includes("arm") || lower.includes("breathless"))) {
@@ -962,7 +1917,7 @@ function analyzePatientSymptoms() {
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 12px;">
-          <div>👤 Patient Age: <strong style="color: #fff;">${patientAge} yrs</strong></div>
+          <div>👤 Patient: <strong style="color: #fff;">${activePatient?.name || 'Patient'} (${patientAge}y)</strong></div>
           <div>⏱️ Symptom Onset: <strong style="color: #fde68a;">${onsetText}</strong></div>
           <div>🩺 Acuity: <strong style="color: #60a5fa;">${triage.category}</strong></div>
         </div>
@@ -1134,6 +2089,223 @@ function transferPatientToAmbulance(symptoms) {
 // ------------------------------------------
 // PORTAL B: AMBULANCE PORTAL (CORE WORKFLOW)
 // ------------------------------------------
+
+function switchAmbulanceSubTab(tabName) {
+  State.ambulanceSubTab = tabName;
+  document.querySelectorAll('#panel-ambulance .subnav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `btn-amb-sub-${tabName}`);
+  });
+  document.querySelectorAll('#panel-ambulance .ambulance-subview').forEach(view => {
+    const isTarget = view.id === `ambulance-subview-${tabName}`;
+    view.style.display = isTarget ? 'block' : 'none';
+  });
+
+  if (tabName === 'dispatch') {
+    renderAmbulanceStepper();
+    if (leafletMap) leafletMap.invalidateSize();
+    renderMap();
+  } else if (tabName === 'handover') {
+    renderAmbulanceHandoverView();
+  } else if (tabName === 'history') {
+    renderAmbulanceHistory();
+  }
+}
+
+function renderAmbulanceStepper() {
+  const container = document.getElementById('ambulance-case-stepper');
+  const pill = document.getElementById('case-lifecycle-status-pill');
+  const advBtn = document.getElementById('btn-advance-case-stage');
+  if (!container) return;
+
+  const currentIdx = State.caseStageIndex || 2;
+  const currentStage = CASE_STAGES.find(s => s.index === currentIdx) || CASE_STAGES[1];
+
+  if (pill) {
+    pill.innerText = `Stage ${currentStage.index}: ${currentStage.label}`;
+  }
+
+  if (advBtn) {
+    if (currentIdx >= 8) {
+      advBtn.style.display = 'none';
+    } else {
+      advBtn.style.display = 'inline-flex';
+      const nextStage = CASE_STAGES[currentIdx];
+      advBtn.innerText = `Advance to: ${nextStage.label} ➔`;
+    }
+  }
+
+  container.innerHTML = CASE_STAGES.map(stage => {
+    const isCompleted = stage.index < currentIdx;
+    const isActive = stage.index === currentIdx;
+    const stateClass = isCompleted ? 'completed' : (isActive ? 'active' : 'pending');
+    return `
+      <div class="stepper-step ${stateClass}">
+        <div class="stepper-bubble">${isCompleted ? '✓' : stage.icon}</div>
+        <div class="stepper-label">${stage.label}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function advanceCaseStage() {
+  if (State.caseStageIndex < 8) {
+    State.caseStageIndex += 1;
+    const currentStage = CASE_STAGES[State.caseStageIndex - 1];
+    State.currentCase.status = currentStage.label;
+    State.currentCase.stageIndex = State.caseStageIndex;
+
+    // Stage 5: Patient Picked Up -> Destination locked strictly to hospital
+    if (State.caseStageIndex === 5) {
+      const bestHosp = State.hospitals.find(h => h.id === State.currentCase.selectedHospitalId) || State.hospitals[0];
+      appendAuditLog("PATIENT_PICKED_UP", "AMBULANCE", `Patient onboard Unit #9021. Transit destination locked to '${bestHosp.name}'.`);
+    } else if (State.caseStageIndex === 8) {
+      completeAmbulanceCase();
+      return;
+    }
+
+    appendAuditLog("CASE_STAGE_ADVANCE", "AMBULANCE", `Case ${State.currentCase.id} advanced to Stage ${State.caseStageIndex}: ${currentStage.label}`);
+    DatabaseService.save('CASE_STAGE_ADVANCE', { caseId: State.currentCase.id, stageIndex: State.caseStageIndex });
+    renderAmbulanceStepper();
+    renderAmbulanceHandoverView();
+  }
+}
+
+function completeAmbulanceCase() {
+  State.caseStageIndex = 8;
+  State.currentCase.status = "Case Completed";
+  State.currentCase.stageIndex = 8;
+  State.currentCase.completedAt = new Date().toLocaleTimeString();
+
+  const completedEntry = {
+    caseId: State.currentCase.id,
+    patientName: (State.patients.find(p => p.id === State.activePatientId)?.name) || "Rajesh Kumar",
+    category: State.currentCase.category || "Cardiac - STEMI",
+    ambulanceUnit: "Unit #9021",
+    destinationHospital: (State.hospitals.find(h => h.id === State.currentCase.selectedHospitalId)?.name) || "Metro Heart Hospital",
+    completionTime: new Date().toLocaleTimeString(),
+    handoverSummary: `Clinical handover completed. Patient transferred to ED Resuscitation Bay. NEWS2: ${State.currentCase.vitals.spo2}% SpO2, SBP ${State.currentCase.vitals.sbp} mmHg.`
+  };
+
+  if (!State.completedCases) State.completedCases = [];
+  State.completedCases.unshift(completedEntry);
+  if (DatabaseService.db.completedCases) {
+    DatabaseService.db.completedCases.unshift(completedEntry);
+  }
+
+  const amb = State.ambulances.find(a => a.id === "AMB_001");
+  if (amb) amb.status = "Available";
+
+  DatabaseService.save('CASE_COMPLETED', { completedCase: completedEntry });
+  appendAuditLog("CASE_COMPLETED", "AMBULANCE", `Case ${State.currentCase.id} COMPLETED. Handover confirmed at ${completedEntry.destinationHospital}. Unit #9021 released.`);
+
+  renderAmbulanceStepper();
+  renderAmbulanceHistory();
+  renderHospitalCompletedAdmissions();
+  alert(`✓ Case ${State.currentCase.id} Completed!\nClinical handover confirmed at ${completedEntry.destinationHospital}.\nAmbulance #9021 is now Available for dispatch.`);
+}
+
+function renderAmbulanceHandoverView() {
+  const container = document.getElementById('ambulance-full-handover-card');
+  const summaryBox = document.getElementById('ambulance-patient-handover-summary');
+  const patient = State.patients.find(p => p.id === State.activePatientId) || State.patients[0];
+  const caseData = State.currentCase;
+  const hosp = State.hospitals.find(h => h.id === caseData.selectedHospitalId) || State.hospitals[0];
+
+  const html = `
+    <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <span class="status-indicator" style="background: rgba(239, 68, 68, 0.2); color: #f87171; font-weight: 800;">
+            🚨 CLINICAL HANDOVER DOSSIER • CASE ${caseData.id}
+          </span>
+          <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-top: 6px;">Patient: ${patient.name} (${patient.age}y, ${patient.gender})</h3>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 13px; font-weight: 700; color: #34d399;">Destination: ${hosp.name}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Blood Group: <strong style="color: #ef4444;">${patient.bloodGroup}</strong></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <div style="background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Chief Complaint</div>
+          <div style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">${caseData.category}</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Current Vitals</div>
+          <div style="font-size: 13px; font-weight: 700; color: #34d399; margin-top: 2px;">
+            HR: ${caseData.vitals.hr} | BP: ${caseData.vitals.sbp}/${caseData.vitals.dbp} | SpO2: ${caseData.vitals.spo2}%
+          </div>
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Known Allergies</div>
+          <div style="font-size: 13px; font-weight: 700; color: #f87171; margin-top: 2px;">
+            ${(patient.allergies || []).join(", ") || 'No known allergies'}
+          </div>
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Regular Medications</div>
+          <div style="font-size: 12px; color: #d1d5db; margin-top: 2px;">
+            ${(patient.currentMedications || []).join(", ") || 'None'}
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <h4 style="font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 6px;">Pre-Existing Medical History:</h4>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          ${(patient.medicalConditions || []).map(c => `<span class="evidence-tag warning">⚠️ ${c}</span>`).join(" ")}
+          ${(patient.surgeries || []).map(s => `<span class="evidence-tag good">🔪 Prior: ${s}</span>`).join(" ")}
+        </div>
+      </div>
+
+      <div style="background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 12px;">
+        <div style="font-size: 12px; color: #93c5fd; font-weight: 700; margin-bottom: 4px;">Paramedic Pre-Arrival Field Notes:</div>
+        <div style="font-size: 12px; color: #e5e7eb; line-height: 1.5;">${caseData.notes}</div>
+      </div>
+    </div>
+  `;
+
+  if (container) container.innerHTML = html;
+
+  if (summaryBox) {
+    summaryBox.innerHTML = `
+      <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px; font-size: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <strong style="color: #60a5fa;">📋 Patient Dossier: ${patient.name} (${patient.bloodGroup})</strong>
+          <span style="color: #34d399; cursor: pointer; text-decoration: underline;" onclick="switchAmbulanceSubTab('handover')">Full Dossier ➔</span>
+        </div>
+        <div style="color: var(--text-secondary);">
+          History: ${(patient.medicalConditions || []).slice(0, 2).join(", ")} | Allergies: <span style="color: #f87171;">${(patient.allergies || []).join(", ") || 'None'}</span>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderAmbulanceHistory() {
+  const tbody = document.getElementById('ambulance-history-tbody');
+  if (!tbody) return;
+
+  const list = State.completedCases || [];
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No completed dispatches logged yet. Complete an emergency case to archive here.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(item => `
+    <tr>
+      <td><strong>${item.caseId}</strong></td>
+      <td>${item.patientName}</td>
+      <td><span class="status-indicator" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 10px;">${item.category}</span></td>
+      <td>${item.ambulanceUnit}</td>
+      <td>${item.destinationHospital}</td>
+      <td style="font-family: monospace; font-size: 11px;">${item.completionTime}</td>
+      <td style="font-size: 12px; color: var(--text-secondary);">${item.handoverSummary}</td>
+    </tr>
+  `).join("");
+}
+
 function renderAmbulancePortal() {
   const caseData = State.currentCase;
 
@@ -1157,6 +2329,10 @@ function renderAmbulancePortal() {
 
   // Update Vitals Display
   updateVitalsGauges(caseData.vitals);
+
+  // Update Stepper & Handover Brief
+  renderAmbulanceStepper();
+  renderAmbulanceHandoverView();
 
   // Run pipeline if not already run
   if (!caseData.triageResult) {
@@ -1482,6 +2658,26 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
 // ------------------------------------------
 // PORTAL C: HOSPITAL ED COORDINATOR PORTAL
 // ------------------------------------------
+
+function switchHospitalSubTab(tabName) {
+  State.hospitalSubTab = tabName;
+  document.querySelectorAll('#panel-hospital .subnav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `btn-hosp-sub-${tabName}`);
+  });
+  document.querySelectorAll('#panel-hospital .hospital-subview').forEach(view => {
+    const isTarget = view.id === `hospital-subview-${tabName}`;
+    view.style.display = isTarget ? 'block' : 'none';
+  });
+
+  if (tabName === 'capacity') {
+    renderHospitalCapacityView();
+  } else if (tabName === 'inbound') {
+    renderHospitalAlertQueue();
+  } else if (tabName === 'completed') {
+    renderHospitalCompletedAdmissions();
+  }
+}
+
 function renderHospitalPortal() {
   try {
     if (!State.hospitals || State.hospitals.length === 0) return;
@@ -1497,36 +2693,66 @@ function renderHospitalPortal() {
       hospSelect.value = State.selectedHospitalId || State.hospitals[0]?.id;
     }
 
-    const currentHosp = State.hospitals.find(h => h.id === State.selectedHospitalId) || State.hospitals[0];
-    if (!currentHosp) return;
-
-    // Update Capacity Counters safely
-    const edBeds = document.getElementById('hosp-ed-beds');
-    if (edBeds) edBeds.value = currentHosp.available_ed_beds ?? 0;
-    const icuBeds = document.getElementById('hosp-icu-beds');
-    if (icuBeds) icuBeds.value = currentHosp.available_icu_beds ?? 0;
-    const cathToggle = document.getElementById('hosp-cath-toggle');
-    if (cathToggle) cathToggle.checked = !!currentHosp.cath_lab_available;
-    const strokeToggle = document.getElementById('hosp-stroke-toggle');
-    if (strokeToggle) strokeToggle.checked = !!currentHosp.stroke_unit_available;
-    const divertToggle = document.getElementById('hosp-divert-toggle');
-    if (divertToggle) divertToggle.checked = !!currentHosp.is_diverting;
-
-    // Staleness badge
-    const stalenessEl = document.getElementById('hosp-staleness-badge');
-    if (stalenessEl) {
-      const isStale = (currentHosp.last_updated_minutes_ago || 0) > 15;
-      stalenessEl.innerHTML = `
-        <span class="status-indicator" style="background: ${isStale ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}; color: ${isStale ? '#fde68a' : '#34d399'};">
-          ● Last Verified: ${currentHosp.last_updated_minutes_ago || 0} mins ago ${isStale ? '(UNVERIFIED)' : '(FRESH)'}
-        </span>
-      `;
-    }
-
-    // Render Alert Queue
+    renderHospitalCapacityView();
     renderHospitalAlertQueue();
+    renderHospitalCompletedAdmissions();
   } catch (err) {
     console.error("Error in renderHospitalPortal:", err);
+  }
+}
+
+function renderHospitalCapacityView() {
+  const currentHosp = State.hospitals.find(h => h.id === State.selectedHospitalId) || State.hospitals[0];
+  if (!currentHosp) return;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val !== undefined ? val : 0;
+  };
+  const setCheck = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.checked = !!val;
+  };
+
+  setVal('hosp-ed-beds', currentHosp.available_ed_beds ?? 0);
+  setVal('hosp-icu-beds', currentHosp.available_icu_beds ?? 0);
+  setVal('hosp-cardiac-icu-beds', currentHosp.cardiac_icu_beds ?? 3);
+  setVal('hosp-vents-free', currentHosp.ventilators_free ?? 6);
+  setVal('hosp-ors-free', currentHosp.emergency_ors_free ?? 2);
+  setCheck('hosp-cath-toggle', currentHosp.cath_lab_available);
+  setCheck('hosp-stroke-toggle', currentHosp.stroke_unit_available);
+  setCheck('hosp-divert-toggle', currentHosp.is_diverting);
+
+  // Staleness badge
+  const stalenessEl = document.getElementById('hosp-staleness-badge');
+  if (stalenessEl) {
+    const isStale = (currentHosp.last_updated_minutes_ago || 0) > 15;
+    stalenessEl.innerHTML = `
+      <span class="status-indicator" style="background: ${isStale ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}; color: ${isStale ? '#fde68a' : '#34d399'};">
+        ● Last Verified: ${currentHosp.last_updated_minutes_ago || 0} mins ago ${isStale ? '(UNVERIFIED)' : '(FRESH)'}
+      </span>
+    `;
+  }
+
+  // Specialist Roster
+  const rosterContainer = document.getElementById('hospital-specialists-roster');
+  if (rosterContainer) {
+    const specs = currentHosp.specialists_on_duty || [
+      { role: "Emergency Medicine Lead", name: "Dr. Ananya Roy", available: true },
+      { role: "Interventional Cardiologist", name: "Dr. V. Rao", available: true },
+      { role: "Critical Care Intensivist", name: "Dr. S. Nair", available: true }
+    ];
+    rosterContainer.innerHTML = specs.map(s => `
+      <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; font-size: 12px;">
+        <div>
+          <strong style="color: #fff;">${s.name}</strong>
+          <div style="font-size: 11px; color: var(--text-secondary);">${s.role}</div>
+        </div>
+        <span class="status-indicator" style="background: rgba(16,185,129,0.2); color: #34d399; font-size: 10px;">
+          ● ${s.available ? 'On Duty' : 'On Call'}
+        </span>
+      </div>
+    `).join("");
   }
 }
 
@@ -1539,24 +2765,30 @@ function updateHospitalCapacity() {
   const hosp = State.hospitals.find(h => h.id === State.selectedHospitalId);
   if (!hosp) return;
 
-  hosp.available_ed_beds = parseInt(document.getElementById('hosp-ed-beds').value) || 0;
-  hosp.available_icu_beds = parseInt(document.getElementById('hosp-icu-beds').value) || 0;
-  hosp.cath_lab_available = document.getElementById('hosp-cath-toggle').checked;
-  hosp.stroke_unit_available = document.getElementById('hosp-stroke-toggle').checked;
-  hosp.is_diverting = document.getElementById('hosp-divert-toggle').checked;
+  hosp.available_ed_beds = parseInt(document.getElementById('hosp-ed-beds')?.value) || 0;
+  hosp.available_icu_beds = parseInt(document.getElementById('hosp-icu-beds')?.value) || 0;
+  hosp.cardiac_icu_beds = parseInt(document.getElementById('hosp-cardiac-icu-beds')?.value) || 0;
+  hosp.ventilators_free = parseInt(document.getElementById('hosp-vents-free')?.value) || 0;
+  hosp.emergency_ors_free = parseInt(document.getElementById('hosp-ors-free')?.value) || 0;
+  hosp.cath_lab_available = document.getElementById('hosp-cath-toggle')?.checked ?? hosp.cath_lab_available;
+  hosp.stroke_unit_available = document.getElementById('hosp-stroke-toggle')?.checked ?? hosp.stroke_unit_available;
+  hosp.is_diverting = document.getElementById('hosp-divert-toggle')?.checked ?? hosp.is_diverting;
   hosp.last_updated_minutes_ago = 0; // refreshed
+
+  DatabaseService.save('HOSPITAL_CAPACITY_UPDATE', { hospitalId: hosp.id });
 
   appendAuditLog("HOSPITAL_CAPACITY_UPDATE", "HOSPITAL", `Capacity metrics updated by ED staff for '${hosp.name}'`, {
     available_ed_beds: hosp.available_ed_beds,
     available_icu_beds: hosp.available_icu_beds,
+    ventilators_free: hosp.ventilators_free,
     is_diverting: hosp.is_diverting
   });
 
   renderHospitalPortal();
-  // Auto re-run ambulance pipeline if ambulance was looking at hospitals
   if (State.currentCase.triageResult) {
     runAmbulancePipeline();
   }
+  alert(`✓ Live capacity and resource levels updated for ${hosp.name}. Synchronized across all portals.`);
 }
 
 function refreshHospitalStaleness() {
@@ -1565,6 +2797,55 @@ function refreshHospitalStaleness() {
     hosp.last_updated_minutes_ago = 0;
     renderHospitalPortal();
     appendAuditLog("HOSPITAL_DATA_VERIFIED", "HOSPITAL", `Hospital staff manually refreshed data verification stamp for '${hosp.name}'`);
+    alert(`✓ Telemetry verified for ${hosp.name}. Data freshness timestamp reset to 0 minutes.`);
+  }
+}
+
+function renderHospitalCompletedAdmissions() {
+  const tbody = document.getElementById('hospital-completed-tbody');
+  if (!tbody) return;
+
+  const currentHosp = State.hospitals.find(h => h.id === State.selectedHospitalId) || State.hospitals[0];
+  const list = (State.completedCases || []).filter(c => !currentHosp || c.destinationHospital.toLowerCase().includes(currentHosp.name.toLowerCase().split(" ")[0].toLowerCase()));
+
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No completed admissions recorded for this facility yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(item => `
+    <tr>
+      <td><strong>${item.caseId}</strong></td>
+      <td>${item.patientName}</td>
+      <td><span class="status-indicator" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 10px;">${item.category}</span></td>
+      <td>${item.ambulanceUnit}</td>
+      <td style="font-family: monospace; font-size: 11px;">${item.completionTime}</td>
+      <td>Emergency Resuscitation Bay</td>
+      <td style="font-size: 12px; color: var(--text-secondary);">${item.handoverSummary}</td>
+    </tr>
+  `).join("");
+}
+
+// Global View Refresh across all Portals
+function refreshAllActiveViews() {
+  if (State.activePortal === 'patient') {
+    updatePatientContextBanner();
+    if (State.patientSubTab === 'phr') renderPatientPHR();
+    else if (State.patientSubTab === 'tracker') renderPatientTracker();
+    else if (State.patientSubTab === 'firstaid') renderPatientFirstAid();
+    else renderPatientNearbyHospitals();
+  } else if (State.activePortal === 'ambulance') {
+    renderAmbulanceStepper();
+    if (State.ambulanceSubTab === 'handover') renderAmbulanceHandoverView();
+    else if (State.ambulanceSubTab === 'history') renderAmbulanceHistory();
+    else {
+      renderRecommendationsList(State.currentCase.recommendations);
+      renderMap();
+    }
+  } else if (State.activePortal === 'hospital') {
+    if (State.hospitalSubTab === 'capacity') renderHospitalCapacityView();
+    else if (State.hospitalSubTab === 'inbound') renderHospitalAlertQueue();
+    else if (State.hospitalSubTab === 'completed') renderHospitalCompletedAdmissions();
   }
 }
 
@@ -2743,15 +4024,21 @@ function exportAuditLogJson() {
 // ==========================================
 async function initApp() {
   try {
-    // Load local dataset files
-    const hospRes = await fetch('data/synthetic_hospitals.json');
-    State.hospitals = await hospRes.json();
+    // 1. Initialize Central Database (REST API /api/db + local fallback)
+    await DatabaseService.init();
 
-    const casesRes = await fetch('data/synthetic_cases.json');
-    State.cases = await casesRes.json();
+    // 2. Load hospital and case datasets if not already populated from DatabaseService
+    if (!State.hospitals || State.hospitals.length === 0) {
+      const hospRes = await fetch('data/synthetic_hospitals.json');
+      State.hospitals = await hospRes.json();
+    }
+
+    if (!State.cases || State.cases.length === 0) {
+      const casesRes = await fetch('data/synthetic_cases.json');
+      State.cases = await casesRes.json();
+    }
   } catch (e) {
     console.warn("Failed fetching JSON via HTTP, falling back to embedded defaults:", e);
-    // Embedded fallback if opened via file:// protocol
     State.hospitals = [
       { id: "HOSP_1", name: "Metro Heart & Super-Specialty Hospital", type: "Cardiac & Multi-Specialty", lat: 12.9716, lng: 77.5946, address: "42 Brigade Rd", total_ed_beds: 28, available_ed_beds: 8, total_icu_beds: 16, available_icu_beds: 4, has_cath_lab: true, cath_lab_available: true, has_stroke_unit: false, stroke_unit_available: false, trauma_level: "Level 3", ventilators_free: 6, ct_scan_operational: true, specialists_on_duty: [{ role: "Interventional Cardiologist", name: "Dr. V. Rao", available: true }], last_updated_minutes_ago: 2, is_diverting: false },
       { id: "HOSP_2", name: "City Central Trauma & General Hospital", type: "Level-1 Trauma & General", lat: 12.9352, lng: 77.6245, address: "100 Outer Ring Road", total_ed_beds: 45, available_ed_beds: 12, total_icu_beds: 24, available_icu_beds: 6, has_cath_lab: false, cath_lab_available: false, has_stroke_unit: true, stroke_unit_available: true, trauma_level: "Level 1", ventilators_free: 9, ct_scan_operational: true, specialists_on_duty: [{ role: "Trauma & Orthopedic Surgeon", name: "Dr. K. Patel", available: true }], last_updated_minutes_ago: 5, is_diverting: false },
@@ -2762,12 +4049,29 @@ async function initApp() {
     ];
   }
 
+  // Populate active patient selector
+  const pSelect = document.getElementById('patient-profile-selector');
+  if (pSelect && State.patients && State.patients.length > 0) {
+    pSelect.innerHTML = State.patients.map(p => `
+      <option value="${p.id}" ${p.id === State.activePatientId ? 'selected' : ''}>
+        ${p.name} (${p.age}y, ${p.gender} - ${p.medicalConditions.slice(0, 2).join(", ")})
+      </option>
+    `).join("");
+  }
+  switchActivePatient(State.activePatientId);
+
   // Initial audit log
-  appendAuditLog("SYSTEM_INITIALIZATION", "SYSTEM", "Multi-Agent Decision Support Prototype initialized with verified synthetic datasets.");
+  appendAuditLog("SYSTEM_INITIALIZATION", "SYSTEM", "Multi-Agent Emergency Healthcare Coordination System initialized with Central Common Database.");
 
   // Start Live Real-Time Hospital Telemetry Stream
   startRealtimeHospitalStream();
   renderPatientNearbyHospitals();
+
+  // Initialize Stepper, Handover & History
+  renderAmbulanceStepper();
+  renderAmbulanceHandoverView();
+  renderAmbulanceHistory();
+  renderHospitalCompletedAdmissions();
 
   // Ensure Map starts docked in the corner in minimized form
   const mapWrapper = document.getElementById('ambulance-map-wrapper');

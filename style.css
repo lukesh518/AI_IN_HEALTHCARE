@@ -1370,3 +1370,366 @@ body {
     right: 14px;
   }
 }
+
+/* ========================================================== */
+/* AEGISCARE ENHANCED PORTAL STYLES (PHR, TRACKER, FIRST AID) */
+/* ========================================================== */
+
+/* Subnavigation Pills within Portals */
+.subnav-bar {
+  display: flex;
+  gap: 8px;
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid var(--border-color);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.subnav-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subnav-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.subnav-btn.active {
+  background: var(--color-brand);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Voice Recognition Button */
+.mic-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.mic-btn:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #fff;
+}
+
+.mic-btn.recording {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #fca5a5;
+  animation: pulse-danger 1.2s infinite;
+}
+
+/* Categorized Symptom Chips */
+.symptom-category-block {
+  margin-bottom: 12px;
+}
+
+.symptom-category-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.symptom-chips-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.symptom-chip {
+  padding: 6px 11px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.symptom-chip:hover {
+  border-color: #60a5fa;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.symptom-chip.selected {
+  background: #3b82f6;
+  border-color: #93c5fd;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.symptom-chip.red-flag {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.symptom-chip.red-flag.selected {
+  background: #ef4444;
+  border-color: #fca5a5;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+}
+
+/* First Aid Assistance Waiting Screen */
+.firstaid-container {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+  border: 2px solid #ef4444;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(239, 68, 68, 0.35);
+  margin-top: 20px;
+}
+
+.firstaid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+}
+
+.firstaid-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+  .firstaid-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.firstaid-card-do {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.firstaid-card-dont {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.firstaid-card-do h4 {
+  color: #34d399;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.firstaid-card-dont h4 {
+  color: #f87171;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.firstaid-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.firstaid-list li {
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 20px;
+}
+
+.firstaid-card-do .firstaid-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #34d399;
+  font-weight: bold;
+}
+
+.firstaid-card-dont .firstaid-list li::before {
+  content: "✕";
+  position: absolute;
+  left: 0;
+  color: #f87171;
+  font-weight: bold;
+}
+
+/* 8-Stage Case Stepper / Lifecycle */
+.case-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  margin: 18px 0;
+  padding: 0 10px;
+}
+
+.case-stepper::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  right: 24px;
+  height: 3px;
+  background: var(--border-color);
+  z-index: 1;
+}
+
+.stepper-step {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  cursor: pointer;
+  flex: 1;
+}
+
+.stepper-bubble {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-surface-elevated);
+  border: 2px solid var(--border-color);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 6px;
+  font-weight: 700;
+  font-size: 12px;
+  transition: all 0.25s ease;
+}
+
+.stepper-step.completed .stepper-bubble {
+  background: #10b981;
+  border-color: #34d399;
+  color: #fff;
+}
+
+.stepper-step.active .stepper-bubble {
+  background: #3b82f6;
+  border-color: #93c5fd;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+  transform: scale(1.1);
+}
+
+.stepper-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stepper-step.active .stepper-label {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Health Tracker Charts & Cards */
+.tracker-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.tracker-metric-tile {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  text-align: center;
+}
+
+.tracker-metric-val {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 4px 0;
+}
+
+.tracker-metric-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Clinical Handover Summary Card (Ambulance & Hospital) */
+.clinical-handover-card {
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.clinical-badge-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+/* Pre-arrival Inbound Alert Box */
+.inbound-alert-card {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid #3b82f6;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 14px;
+  transition: all 0.2s ease;
+}
+
+.inbound-alert-card.critical {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25);
+}
+
+.inbound-action-btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}

@@ -229,6 +229,19 @@
       <!-- ======================================================== -->
       <section id="panel-ambulance" class="portal-panel active">
 
+        <!-- Ambulance Subnav Tabs -->
+        <div class="subnav-bar">
+          <button class="subnav-btn active" id="btn-amb-sub-dispatch" onclick="switchAmbulanceSubTab('dispatch')">
+            🚑 Live Dispatch & Map Routing
+          </button>
+          <button class="subnav-btn" id="btn-amb-sub-handover" onclick="switchAmbulanceSubTab('handover')">
+            📋 Patient Pre-Arrival Handover
+          </button>
+          <button class="subnav-btn" id="btn-amb-sub-history" onclick="switchAmbulanceSubTab('history')">
+            📜 Case History (Completed Dispatches)
+          </button>
+        </div>
+
         <!-- Multi-Agent Workflow Pipeline Stage Bar -->
         <div class="agent-pipeline-bar">
           <div class="pipeline-step passed">
@@ -248,7 +261,7 @@
           <div class="step-connector"></div>
           <div class="pipeline-step passed">
             <span class="step-num">4</span>
-            <span>OSM Routing Agent</span>
+            <span>OSRM Routing Agent</span>
           </div>
           <div class="step-connector"></div>
           <div class="pipeline-step passed">
@@ -259,6 +272,29 @@
           <div class="pipeline-step active">
             <span class="step-num">6</span>
             <span style="font-weight: 700; color: #60a5fa;">Paramedic HITL Gate</span>
+          </div>
+        </div>
+
+        <!-- 8-Stage Emergency Case Lifecycle Stepper -->
+        <div class="card" style="margin-bottom: 16px; padding: 14px 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13.5px; font-weight: 800; color: #fff;">Emergency Lifecycle:</span>
+              <span id="case-lifecycle-status-pill" class="status-indicator" style="background: rgba(59,130,246,0.2); color: #93c5fd; font-weight: 700;">
+                Stage 2: Accepted
+              </span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary btn-sm" id="btn-advance-case-stage" onclick="advanceCaseStage()">
+                ▶ Advance Status ➔
+              </button>
+              <button class="btn btn-success btn-sm" id="btn-complete-case" onclick="completeAmbulanceCase()" style="font-weight: 700;">
+                ✓ Complete Case
+              </button>
+            </div>
+          </div>
+          <div class="case-stepper" id="ambulance-case-stepper">
+            <!-- 8 stages populated dynamically by app.js -->
           </div>
         </div>
 
@@ -276,130 +312,191 @@
           </span>
         </div>
 
-        <div class="grid-ambulance-docked">
+        <!-- ========================================== -->
+        <!-- SUB-VIEW 1: DISPATCH & LIVE MAP           -->
+        <!-- ========================================== -->
+        <div id="ambulance-subview-dispatch" class="ambulance-subview">
+          <div class="grid-ambulance-docked">
 
-          <!-- Column 1: Paramedic Case Input & Live Telemetry -->
-          <div>
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title">🚑 Paramedic Case Entry</h2>
-                <span style="font-size: 11px; color: var(--text-muted);">Ambulance #9021</span>
-              </div>
+            <!-- Column 1: Paramedic Case Input & Live Telemetry -->
+            <div>
+              <div class="card">
+                <div class="card-header">
+                  <h2 class="card-title">🚑 Paramedic Case Entry</h2>
+                  <span style="font-size: 11px; color: var(--text-muted);">Ambulance #9021</span>
+                </div>
 
-              <!-- Preset Scenarios -->
-              <div class="form-group">
-                <label class="form-label">Emergency Case Presets:</label>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('stemi')">STEMI</button>
-                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('stroke')">Stroke</button>
-                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('trauma')">Polytrauma</button>
-                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('sepsis')">Sepsis/ARDS</button>
-                  <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('asthma')">Asthma</button>
+                <!-- Preset Scenarios -->
+                <div class="form-group">
+                  <label class="form-label">Emergency Case Presets:</label>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('stemi')">STEMI</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('stroke')">Stroke</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('trauma')">Polytrauma</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('sepsis')">Sepsis/ARDS</button>
+                    <button class="btn btn-secondary btn-sm" onclick="loadCasePreset('asthma')">Asthma</button>
+                  </div>
+                </div>
+
+                <!-- Case Narrative / Speech Simulation -->
+                <div class="form-group">
+                  <label class="form-label" for="case-notes-input">Paramedic Clinical Observations (Text / Voice Input):</label>
+                  <textarea id="case-notes-input" class="form-textarea" rows="3"
+                    placeholder="Enter clinical observations, onset time, presenting symptoms..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary btn-full btn-sm" onclick="runAmbulancePipeline()">
+                    ⚡ Run Multi-Agent Evaluation
+                  </button>
+                  <button class="btn btn-outline btn-sm" onclick="toggleMapMaximize(event)" title="Maximise Live Map">
+                    🗺️ Maximise Map (⛶)
+                  </button>
                 </div>
               </div>
 
-              <!-- Case Narrative / Speech Simulation -->
-              <div class="form-group">
-                <label class="form-label" for="case-notes-input">Paramedic Clinical Observations (Text / Voice Input):</label>
-                <textarea id="case-notes-input" class="form-textarea" rows="3"
-                  placeholder="Enter clinical observations, onset time, presenting symptoms..."></textarea>
+              <!-- Pre-Arrival Patient Summary Context Card -->
+              <div id="ambulance-patient-handover-summary" class="clinical-handover-card">
+                <!-- Dynamically populated with linked patient PHR, allergies, meds -->
               </div>
 
-              <div style="display: flex; gap: 8px;">
-                <button class="btn btn-primary btn-full btn-sm" onclick="runAmbulancePipeline()">
-                  ⚡ Run Multi-Agent Evaluation
-                </button>
-                <button class="btn btn-outline btn-sm" onclick="toggleMapMaximize(event)" title="Maximise Live Map">
-                  🗺️ Maximise Map (⛶)
-                </button>
+              <!-- Live Telemetry Stream & NEWS2 Gauge -->
+              <div class="card">
+                <div class="card-header">
+                  <h2 class="card-title">📡 Real-Time Telemetry Stream</h2>
+                  <span class="status-indicator">Live Sensor Sync</span>
+                </div>
+
+                <div class="vitals-grid">
+                  <div class="vital-tile" id="tile-hr">
+                    <span class="vital-label">Heart Rate</span>
+                    <div class="vital-value-row">
+                      <span class="vital-value" id="vital-hr">108</span>
+                      <span class="vital-unit">bpm</span>
+                    </div>
+                    <span class="vital-badge">ECG</span>
+                  </div>
+
+                  <div class="vital-tile" id="tile-bp">
+                    <span class="vital-label">Blood Pressure</span>
+                    <div class="vital-value-row">
+                      <span class="vital-value" id="vital-bp">88/58</span>
+                      <span class="vital-unit">mmHg</span>
+                    </div>
+                    <span class="vital-badge">NIBP</span>
+                  </div>
+
+                  <div class="vital-tile critical" id="tile-spo2">
+                    <span class="vital-label">Oxygen Saturation</span>
+                    <div class="vital-value-row">
+                      <span class="vital-value" id="vital-spo2">93%</span>
+                      <span class="vital-unit">SpO₂</span>
+                    </div>
+                    <span class="vital-badge">PulseOx</span>
+                  </div>
+
+                  <div class="vital-tile" id="tile-rr">
+                    <span class="vital-label">Respiratory Rate</span>
+                    <div class="vital-value-row">
+                      <span class="vital-value" id="vital-rr">24</span>
+                      <span class="vital-unit">/min</span>
+                    </div>
+                    <span class="vital-badge">Capno</span>
+                  </div>
+                </div>
+
+                <!-- NEWS2 Deterioration Score Indicator -->
+                <div
+                  style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; margin-top: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <span
+                      style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary);">
+                      Baseline NEWS2 Risk Score
+                    </span>
+                    <span id="vital-news2" style="font-size: 20px; font-weight: 800; color: #ef4444;">8</span>
+                  </div>
+                  <div id="vital-news2-desc" style="font-size: 11px; color: #f87171; font-weight: 600; margin-top: 2px;">
+                    High Clinical Deterioration Risk (Urgent Medical Review)
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Live Telemetry Stream & NEWS2 Gauge -->
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title">📡 Real-Time Telemetry Stream</h2>
-                <span class="status-indicator">Live Sensor Sync</span>
-              </div>
-
-              <div class="vitals-grid">
-                <div class="vital-tile" id="tile-hr">
-                  <span class="vital-label">Heart Rate</span>
-                  <div class="vital-value-row">
-                    <span class="vital-value" id="vital-hr">108</span>
-                    <span class="vital-unit">bpm</span>
+            <!-- Column 2: Ranked Recommendations & Destination Dispatch -->
+            <div>
+              <div class="card">
+                <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
+                  <div>
+                    <h2 class="card-title">🎯 Hospital Recommendations & Dispatch</h2>
+                    <div class="card-subtitle">AI Multi-Agent Matching & OSRM Live Road Routing</div>
                   </div>
-                  <span class="vital-badge">ECG</span>
+                  <button class="btn btn-secondary btn-sm" onclick="toggleMapMaximize(event)" style="font-weight: 700;">
+                    🗺️ Expand Map (⛶)
+                  </button>
                 </div>
 
-                <div class="vital-tile" id="tile-bp">
-                  <span class="vital-label">Blood Pressure</span>
-                  <div class="vital-value-row">
-                    <span class="vital-value" id="vital-bp">88/58</span>
-                    <span class="vital-unit">mmHg</span>
-                  </div>
-                  <span class="vital-badge">NIBP</span>
-                </div>
+                <!-- Triage Summary Banner -->
+                <div id="triage-summary-banner"></div>
 
-                <div class="vital-tile critical" id="tile-spo2">
-                  <span class="vital-label">Oxygen Saturation</span>
-                  <div class="vital-value-row">
-                    <span class="vital-value" id="vital-spo2">93%</span>
-                    <span class="vital-unit">SpO₂</span>
-                  </div>
-                  <span class="vital-badge">PulseOx</span>
-                </div>
-
-                <div class="vital-tile" id="tile-rr">
-                  <span class="vital-label">Respiratory Rate</span>
-                  <div class="vital-value-row">
-                    <span class="vital-value" id="vital-rr">24</span>
-                    <span class="vital-unit">/min</span>
-                  </div>
-                  <span class="vital-badge">Capno</span>
+                <!-- Top 3 Recommendations Container -->
+                <div id="recommendations-container">
+                  <!-- Dynamically rendered by app.js -->
                 </div>
               </div>
+            </div>
 
-              <!-- NEWS2 Deterioration Score Indicator -->
-              <div
-                style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; margin-top: 14px;">
-                <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                  <span
-                    style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary);">
-                    Baseline NEWS2 Risk Score
-                  </span>
-                  <span id="vital-news2" style="font-size: 20px; font-weight: 800; color: #ef4444;">8</span>
-                </div>
-                <div id="vital-news2-desc" style="font-size: 11px; color: #f87171; font-weight: 600; margin-top: 2px;">
-                  High Clinical Deterioration Risk (Urgent Medical Review)
-                </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SUB-VIEW 2: PRE-ARRIVAL PATIENT HANDOVER   -->
+        <!-- ========================================== -->
+        <div id="ambulance-subview-handover" class="ambulance-subview" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">📋 Comprehensive Pre-Arrival Patient Handover</h2>
+                <div class="card-subtitle">Encrypted Clinical Dossier Transmitted to Destination Emergency Department</div>
               </div>
+              <span class="status-indicator">Clinical Handover Protocol</span>
+            </div>
+            <div id="ambulance-full-handover-card">
+              <!-- Dynamically populated by app.js -->
             </div>
           </div>
+        </div>
 
-          <!-- Column 2: Ranked Recommendations & Destination Dispatch -->
-          <div>
-            <div class="card">
-              <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h2 class="card-title">🎯 Hospital Recommendations & Dispatch</h2>
-                  <div class="card-subtitle">AI Multi-Agent Matching & Live Routing</div>
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="toggleMapMaximize(event)" style="font-weight: 700;">
-                  🗺️ Expand Map (⛶)
-                </button>
+        <!-- ========================================== -->
+        <!-- SUB-VIEW 3: COMPLETED CASE HISTORY         -->
+        <!-- ========================================== -->
+        <div id="ambulance-subview-history" class="ambulance-subview" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">📜 Completed Emergency Dispatches & Handover Archive</h2>
+                <div class="card-subtitle">Permanent Ledger of Handed-Over Patients & Turnaround Timestamps</div>
               </div>
-
-              <!-- Triage Summary Banner -->
-              <div id="triage-summary-banner"></div>
-
-              <!-- Top 3 Recommendations Container -->
-              <div id="recommendations-container">
-                <!-- Dynamically rendered by app.js -->
-              </div>
+              <span class="status-indicator">Immutable Storage</span>
+            </div>
+            <div style="overflow-x: auto; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Case ID</th>
+                    <th>Patient Name</th>
+                    <th>Acuity</th>
+                    <th>Ambulance</th>
+                    <th>Destination Hospital</th>
+                    <th>Completion Time</th>
+                    <th>Clinical Handover Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="ambulance-history-tbody">
+                  <!-- Dynamically populated by app.js -->
+                </tbody>
+              </table>
             </div>
           </div>
-
         </div>
 
         <!-- ======================================================== -->
@@ -410,18 +507,18 @@
           <div class="map-floating-header">
             <div class="map-floating-title">
               <span class="realtime-pulse-dot"></span>
-              <span id="map-floating-heading">🗺️ Live Fleet Radar</span>
+              <span id="map-floating-heading">🗺️ Live Fleet Radar (OSRM)</span>
             </div>
             <div class="map-header-buttons" style="display: flex; gap: 6px; align-items: center;">
               <div id="maximized-controls-group" style="display: none; gap: 6px;">
                 <button class="btn btn-sm btn-outline active" id="btn-view-blr" onclick="event.stopPropagation(); setMapView('bengaluru')">
-                  📍 Bengaluru Sector
+                  📍 Sector View
                 </button>
                 <button class="btn btn-sm btn-outline" id="btn-view-ind" onclick="event.stopPropagation(); setMapView('india')">
                   🇮🇳 All-India Map
                 </button>
                 <button class="btn btn-sm btn-outline" id="btn-map-mode" onclick="event.stopPropagation(); toggleMapMode()">
-                  🌐 Mode: OSM
+                  🌐 Mode: OSRM Road
                 </button>
               </div>
               <button class="btn btn-sm btn-primary" id="btn-toggle-map-size" onclick="toggleMapMaximize(event)" style="padding: 4px 10px; font-size: 11.5px; font-weight: 700;">
@@ -433,7 +530,7 @@
           <div class="map-container" style="flex: 1; height: 100%; position: relative; overflow: hidden;">
             <div class="map-header" id="map-inner-header" style="display: none;">
               <div class="map-badge" id="map-status-pill">
-                🚑 <strong>Ambulance #9021</strong>: En Route • Bengaluru Urban, India
+                🚑 <strong>Ambulance #9021</strong>: En Route • Live OSRM Road Route
               </div>
               <div class="map-badge">
                 🟢 Ready ICU &nbsp; 🟠 Constrained &nbsp; 🔴 Divert / Stale
@@ -449,11 +546,11 @@
                 <span class="traffic-guide-live" id="traffic-guide-status">🟢 Traffic: Clear Flow (48 km/h)</span>
               </div>
               <div class="traffic-guide-route" id="traffic-guide-route-text">
-                Ambulance #9021 ➔ Richmond Circle Flyover ➔ Hosur Expressway Bypass
+                Ambulance #9021 ➔ Live Road Guidance Active
               </div>
               <div class="traffic-guide-meta" id="traffic-guide-meta">
-                <span>⏱️ <strong>ETA: ~9 mins</strong> (Saves 16 mins vs congested route)</span>
-                <span style="color: #f87171;">⚠️ Brigade Rd Corridor: Heavy Bottleneck (+18m delay)</span>
+                <span>⏱️ <strong>ETA: ~9 mins</strong></span>
+                <span style="color: #f87171;">⚠️ Congestion Avoidance Enabled</span>
               </div>
             </div>
 
@@ -470,17 +567,16 @@
       <!-- ======================================================== -->
       <section id="panel-hospital" class="portal-panel">
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
             <div>
               <h2 class="card-title">🏥 Hospital Emergency Department Coordination Portal</h2>
-              <div class="card-subtitle">Manage Facility Capacity, Monitor Pre-Arrival Alerts, and Enforce Data
-                Freshness</div>
+              <div class="card-subtitle">Manage Granular Capacity, Pre-Arrival Triage Notifications & Emergency Handovers</div>
             </div>
 
             <!-- Facility Switcher -->
             <div style="display: flex; align-items: center; gap: 10px;">
               <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary);"
-                for="hospital-selector">Select Facility:</label>
+                for="hospital-selector">Active Facility:</label>
               <select id="hospital-selector" class="form-select" style="width: 320px;"
                 onchange="onHospitalChange(this.value)">
                 <!-- Options populated by app.js -->
@@ -488,170 +584,544 @@
             </div>
           </div>
 
-          <div class="grid-2">
-
-            <!-- Capacity Management Console -->
-            <div
-              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                <h3 style="font-size: 14px; font-weight: 700; color: white;">Facility Capacity & Specialist Status</h3>
-                <div id="hosp-staleness-badge"></div>
-              </div>
-
-              <div class="grid-2">
-                <div class="form-group">
-                  <label class="form-label" for="hosp-ed-beds">Available General ED Beds:</label>
-                  <input type="number" id="hosp-ed-beds" class="form-input" min="0" max="60">
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" for="hosp-icu-beds">Available ICU Beds (Critical):</label>
-                  <input type="number" id="hosp-icu-beds" class="form-input" min="0" max="30">
-                </div>
-              </div>
-
-              <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 10px;">
-                <div class="grid-2">
-                  <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-                    <input type="checkbox" id="hosp-cath-toggle" style="width: 16px; height: 16px;">
-                    Primary PCI Cath Lab Available
-                  </label>
-                  <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
-                    <input type="checkbox" id="hosp-stroke-toggle" style="width: 16px; height: 16px;">
-                    Comprehensive Stroke Unit Available
-                  </label>
-                </div>
-
-                <div style="margin-top: 12px;">
-                  <label
-                    style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: #f87171;">
-                    <input type="checkbox" id="hosp-divert-toggle" style="width: 16px; height: 16px;">
-                    <strong>Declare Facility Divert Status (ED Full / Internal Code)</strong>
-                  </label>
-                </div>
-              </div>
-
-              <div style="display: flex; gap: 10px; margin-top: 16px;">
-                <button class="btn btn-primary btn-sm btn-full" onclick="updateHospitalCapacity()">
-                  💾 Save Live Capacity Updates
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="refreshHospitalStaleness()">
-                  🔄 Verify Data Freshness
-                </button>
-              </div>
-            </div>
-
-            <!-- Pre-Arrival Alert Queue -->
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="font-size: 14px; font-weight: 700; color: white;">⚡ Pre-Arrival Ambulance Inbound Queue</h3>
-                <span class="status-indicator">FHIR Protocol Standard</span>
-              </div>
-
-              <div id="hospital-alerts-queue">
-                <!-- Dynamically populated by app.js -->
-              </div>
-            </div>
-
+          <!-- Hospital Subnav Tabs -->
+          <div class="subnav-bar">
+            <button class="subnav-btn active" id="btn-hosp-sub-capacity" onclick="switchHospitalSubTab('capacity')">
+              🏥 Live Capacity & Resource Management
+            </button>
+            <button class="subnav-btn" id="btn-hosp-sub-inbound" onclick="switchHospitalSubTab('inbound')">
+              ⚡ Pre-Arrival Inbound Emergency Queue
+            </button>
+            <button class="subnav-btn" id="btn-hosp-sub-completed" onclick="switchHospitalSubTab('completed')">
+              📜 Completed Patient Admissions
+            </button>
           </div>
+
+          <!-- SUB-VIEW 1: LIVE CAPACITY & RESOURCES -->
+          <div id="hospital-subview-capacity" class="hospital-subview">
+            <div class="grid-2">
+
+              <!-- Capacity Management Console -->
+              <div
+                style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                  <h3 style="font-size: 14px; font-weight: 700; color: white;">Facility Capacity & Specialized Units</h3>
+                  <div id="hosp-staleness-badge"></div>
+                </div>
+
+                <div class="grid-2">
+                  <div class="form-group">
+                    <label class="form-label" for="hosp-ed-beds">Available General ED Beds:</label>
+                    <input type="number" id="hosp-ed-beds" class="form-input" min="0" max="60">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="hosp-icu-beds">Available ICU Beds (General Critical):</label>
+                    <input type="number" id="hosp-icu-beds" class="form-input" min="0" max="30">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="hosp-cardiac-icu-beds">Available Cardiac ICU (CCU) Beds:</label>
+                    <input type="number" id="hosp-cardiac-icu-beds" class="form-input" min="0" max="20" value="3">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="hosp-vents-free">Available Mechanical Ventilators:</label>
+                    <input type="number" id="hosp-vents-free" class="form-input" min="0" max="25" value="6">
+                  </div>
+                </div>
+
+                <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; margin-top: 10px;">
+                  <div class="grid-2">
+                    <div class="form-group">
+                      <label class="form-label" for="hosp-ors-free">Emergency ORs Available:</label>
+                      <input type="number" id="hosp-ors-free" class="form-input" min="0" max="10" value="2">
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="hosp-cath-toggle" style="width: 16px; height: 16px;">
+                        Primary PCI Cath Lab Available
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="hosp-stroke-toggle" style="width: 16px; height: 16px;">
+                        Comprehensive Stroke Unit Available
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 12px;">
+                    <label
+                      style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; color: #f87171;">
+                      <input type="checkbox" id="hosp-divert-toggle" style="width: 16px; height: 16px;">
+                      <strong>Declare Facility Divert Status (ED Full / Critical Resource Exhaustion)</strong>
+                    </label>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 16px;">
+                  <button class="btn btn-primary btn-sm btn-full" onclick="updateHospitalCapacity()">
+                    💾 Save Live Capacity Updates & Sync All Portals
+                  </button>
+                  <button class="btn btn-secondary btn-sm" onclick="refreshHospitalStaleness()">
+                    🔄 Verify Freshness
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Live Overview & Specialist Roster -->
+              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: white; margin-bottom: 12px;">👨‍⚕️ On-Duty Emergency Specialist Coverage</h3>
+                <div id="hospital-specialists-roster" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Dynamically populated by app.js -->
+                </div>
+
+                <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+                  <div style="font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 6px;">⚡ Active Resuscitation Bays</div>
+                  <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                    Hospital telemetry is synchronized in real time with the central multi-agent routing grid. When capacity thresholds drop below critical safety margins, the matching agent automatically suppresses this facility from recommendation rankings.
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 2: PRE-ARRIVAL INBOUND QUEUE -->
+          <div id="hospital-subview-inbound" class="hospital-subview" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 800; color: white;">⚡ Pre-Arrival Ambulance Inbound Queue</h3>
+                <div style="font-size: 12px; color: var(--text-secondary);">Direct pre-hospital telemetry alerts transmitted from en-route ambulance units. Accept or reject incoming cases to trigger automated re-routing.</div>
+              </div>
+              <span class="status-indicator">FHIR Emergency Standard</span>
+            </div>
+
+            <div id="hospital-alerts-queue">
+              <!-- Dynamically populated by app.js with Accept and Reject buttons -->
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 3: COMPLETED ADMISSIONS -->
+          <div id="hospital-subview-completed" class="hospital-subview" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 800; color: white;">📜 Completed Emergency Handovers & Admissions</h3>
+                <div style="font-size: 12px; color: var(--text-secondary);">Permanent institutional registry of transferred emergency cases and clinical outcomes.</div>
+              </div>
+              <span class="status-indicator">Hospital Registry</span>
+            </div>
+
+            <div style="overflow-x: auto; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Case ID</th>
+                    <th>Patient Name</th>
+                    <th>Acuity</th>
+                    <th>Delivering Unit</th>
+                    <th>Arrival / Handover Time</th>
+                    <th>Admitting Service</th>
+                    <th>Clinical Handover Summary</th>
+                  </tr>
+                </thead>
+                <tbody id="hospital-completed-tbody">
+                  <!-- Dynamically populated by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </section>
 
       <!-- ======================================================== -->
-      <!-- PORTAL 3: PATIENT PORTAL (LIGHTWEIGHT TRIAGE)            -->
+      <!-- PORTAL 3: PATIENT PORTAL (ENHANCED PHR & TRIAGE)          -->
       <!-- ======================================================== -->
       <section id="panel-patient" class="portal-panel">
-        <div class="card" style="max-width: 860px; margin: 0 auto;">
-          <div class="card-header">
+        <div class="card" style="max-width: 980px; margin: 0 auto;">
+          <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
             <div>
-              <h2 class="card-title">👤 Patient Triage & Guidance Portal</h2>
-              <div class="card-subtitle">AI Symptom Analysis, Realtime Nearby Hospitals & Live Location Detection</div>
+              <h2 class="card-title">👤 Patient Health & Emergency Guidance Portal</h2>
+              <div class="card-subtitle">AI Triage, Personal Health Records (PHR), Health Tracker & Verified First-Aid</div>
             </div>
-            <span class="status-indicator">Emergency Decision Support</span>
-          </div>
-
-          <!-- Live GPS Location Check (With User Permission) -->
-          <div class="patient-location-box">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div>
-                <div style="font-weight: 700; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                  <span>📍 Your Emergency Location</span>
-                  <span class="realtime-pulse-dot"></span>
-                </div>
-                <div id="patient-location-display" style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
-                  Current Location: Richmond Town, Bengaluru Urban (12.9550° N, 77.6050° E)
-                </div>
-              </div>
-              <button type="button" class="btn btn-primary btn-sm" id="btn-request-location" onclick="requestUserLiveLocation(true)">
-                📡 Detect My Live Location (Ask Permission)
-              </button>
-            </div>
-            <div id="location-permission-status" style="display: none; margin-top: 8px; font-size: 12px;"></div>
-          </div>
-
-          <!-- Patient Demographics & Onset Timing -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label class="form-label" for="patient-age-input">👤 Patient Age (Years):</label>
-              <input type="number" id="patient-age-input" class="form-input" min="1" max="115" value="58" placeholder="e.g. 58" />
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label class="form-label" for="patient-onset-input">⏱️ When Did Symptoms Start?:</label>
-              <select id="patient-onset-input" class="form-select">
-                <option value="under_30_mins">⚡ Less than 30 minutes ago (Hyper-Acute)</option>
-                <option value="30_60_mins" selected>⏳ 30 - 60 minutes ago (Critical Window)</option>
-                <option value="1_2_hours">🕒 1 - 2 hours ago (Thrombolysis Window)</option>
-                <option value="2_4_hours">🕒 2 - 4 hours ago</option>
-                <option value="4_12_hours">🕓 4 - 12 hours ago</option>
-                <option value="over_12_hours">📅 More than 12 hours ago / Chronic</option>
+            
+            <!-- Patient Profile Selector -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label for="patient-profile-selector" style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Active Profile:</label>
+              <select id="patient-profile-selector" class="form-select" style="width: 280px; font-size: 12px; padding: 6px 10px;" onchange="switchActivePatient(this.value)">
+                <option value="PAT_001" selected>Rajesh Kumar (58y, M - CAD / Stent, HTN)</option>
+                <option value="PAT_002">Priya Sharma (34y, F - Severe Asthma, Allergy)</option>
+                <option value="PAT_003">Amitav Sengupta (71y, M - AFib, Stroke Risk)</option>
               </select>
             </div>
           </div>
 
-          <!-- Quick Complaint Presets -->
-          <div class="form-group">
-            <label class="form-label">Common Symptom Presets:</label>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('chest_pain')">Chest Pain (Red Flag)</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('stroke')">Facial Droop / Speech (Red Flag)</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('headache')">Mild Headache (Routine)</button>
-              <button class="btn btn-secondary btn-sm" onclick="loadPatientPreset('rash')">Skin Rash (Routine)</button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="patient-symptoms-input">Describe how you are feeling (Text or Voice):</label>
-            <textarea id="patient-symptoms-input" class="form-textarea" rows="3"
-              placeholder="Describe symptoms, severity, any known conditions..."></textarea>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <button class="btn btn-primary" onclick="analyzePatientSymptoms()">
-              🔍 Analyze Symptoms with AI Triage
+          <!-- Patient Portal Sub-Navigation Tabs -->
+          <div class="subnav-bar">
+            <button class="subnav-btn active" id="btn-patient-sub-triage" onclick="switchPatientSubTab('triage')">
+              🚨 Symptom Checker & Triage
             </button>
-            <span style="font-size: 11px; color: var(--text-muted);">
-              🔒 Zero PII: No name or identification required
-            </span>
+            <button class="subnav-btn" id="btn-patient-sub-phr" onclick="switchPatientSubTab('phr')">
+              📋 My Health Records (PHR)
+            </button>
+            <button class="subnav-btn" id="btn-patient-sub-tracker" onclick="switchPatientSubTab('tracker')">
+              📈 Personal Health Tracker
+            </button>
+            <button class="subnav-btn" id="btn-patient-sub-firstaid" onclick="switchPatientSubTab('firstaid')">
+              🛡️ Live Assistance & First-Aid
+            </button>
           </div>
 
-          <!-- Result Box -->
-          <div id="patient-triage-result" style="display: none;"></div>
-
-          <!-- Realtime Nearby Hospitals with Live Telemetry -->
-          <div id="patient-nearby-hospitals-section" style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 18px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-              <h3 style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                <span>🏥 Realtime Nearby Emergency Hospitals</span>
-                <span class="badge-pill" style="font-size: 10px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
-                  <span class="realtime-pulse-dot"></span> Live Telemetry Active
-                </span>
-              </h3>
-              <span id="hospital-stream-timestamp" style="font-size: 11px; color: var(--text-muted);">
-                ● Live updates streaming
-              </span>
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 1: SYMPTOM CHECKER & AI TRIAGE   -->
+          <!-- ========================================== -->
+          <div id="patient-subview-triage" class="patient-subview">
+            <!-- Live GPS Location Check (With User Permission) -->
+            <div class="patient-location-box">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <div style="font-weight: 700; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <span>📍 Your Verified Emergency Location</span>
+                    <span class="realtime-pulse-dot"></span>
+                  </div>
+                  <div id="patient-location-display" style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                    Detecting current coordinates...
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-request-location" onclick="requestUserLiveLocation(true)">
+                    📡 Detect My Live Location (Ask Permission)
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="promptManualLocationAdjustment()">
+                    ✏️ Adjust Pickup Point
+                  </button>
+                </div>
+              </div>
+              <div id="location-permission-status" style="display: none; margin-top: 8px; font-size: 12px;"></div>
             </div>
-            <div id="patient-nearby-hospitals-list" class="nearby-hospitals-grid">
-              <!-- Dynamically populated with realtime hospital distances & beds -->
+
+            <!-- Active Medical History Badge Banner -->
+            <div id="patient-active-history-context" style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px; font-size: 12px;">
+              <!-- Populated dynamically with patient's linked medical history -->
+            </div>
+
+            <!-- Patient Demographics & Onset Timing -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="patient-age-input">👤 Patient Age (Years):</label>
+                <input type="number" id="patient-age-input" class="form-input" min="1" max="115" value="58" placeholder="e.g. 58" />
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="patient-onset-input">⏱️ When Did Symptoms Start?:</label>
+                <select id="patient-onset-input" class="form-select">
+                  <option value="under_30_mins">⚡ Less than 30 minutes ago (Hyper-Acute)</option>
+                  <option value="30_60_mins" selected>⏳ 30 - 60 minutes ago (Critical Window)</option>
+                  <option value="1_2_hours">🕒 1 - 2 hours ago (Thrombolysis Window)</option>
+                  <option value="2_4_hours">🕒 2 - 4 hours ago</option>
+                  <option value="4_12_hours">🕓 4 - 12 hours ago</option>
+                  <option value="over_12_hours">📅 More than 12 hours ago / Chronic</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Categorized Multi-Symptom Selector Chips (14 Core Categories) -->
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">Select Symptoms from Predefined Categories:</label>
+                <span style="font-size: 11px; color: var(--text-muted);">Multiple selections supported</span>
+              </div>
+
+              <!-- Category 1: Cardiovascular & Respiratory -->
+              <div class="symptom-category-block">
+                <div class="symptom-category-title">Cardiovascular & Respiratory</div>
+                <div class="symptom-chips-grid">
+                  <div class="symptom-chip red-flag" onclick="toggleSymptomChip(this, 'Crushing Chest Pain', 'Severe')">🫀 Chest Pain / Pressure</div>
+                  <div class="symptom-chip red-flag" onclick="toggleSymptomChip(this, 'Severe Difficulty Breathing', 'Severe')">🫁 Difficulty Breathing / Wheezing</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Rapid Heart Palpitations', 'Moderate')">💓 Palpitations / Racing Heart</div>
+                </div>
+              </div>
+
+              <!-- Category 2: Neurological & Brain -->
+              <div class="symptom-category-block">
+                <div class="symptom-category-title">Neurological & Stroke Warning Signs</div>
+                <div class="symptom-chips-grid">
+                  <div class="symptom-chip red-flag" onclick="toggleSymptomChip(this, 'Facial Droop or Slurred Speech', 'Severe')">🧠 Stroke Signs (FAST: Face / Arm / Speech)</div>
+                  <div class="symptom-chip red-flag" onclick="toggleSymptomChip(this, 'Unconsciousness or Fainting', 'Severe')">⚡ Unconsciousness / Syncope</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Sudden Severe Headache', 'Moderate')">🤕 Thunderclap Headache</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Severe Dizziness & Imbalance', 'Moderate')">💫 Dizziness / Vertigo</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Sudden Blurred or Loss of Vision', 'Moderate')">👁️ Vision Loss / Blurring</div>
+                </div>
+              </div>
+
+              <!-- Category 3: Systemic, Trauma & Abdominal -->
+              <div class="symptom-category-block">
+                <div class="symptom-category-title">Systemic, Acute Trauma & Allergic</div>
+                <div class="symptom-chips-grid">
+                  <div class="symptom-chip red-flag" onclick="toggleSymptomChip(this, 'Active Severe Bleeding', 'Severe')">🩸 Severe Bleeding</div>
+                  <div class="symptom-chip red-flag" onclick="toggleSymptomChip(this, 'Severe Allergic Anaphylaxis (Swollen Lips/Airway)', 'Severe')">⚠️ Allergic Reaction / Anaphylaxis</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Acute Abdominal Pain', 'Moderate')">🤢 Abdominal Pain / Persistent Vomiting</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'High Fever with Rigors', 'Moderate')">🌡️ High Fever & Chills</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Suspected Fracture / Blunt Trauma', 'Moderate')">🦴 Trauma / Bone Fracture</div>
+                  <div class="symptom-chip" onclick="toggleSymptomChip(this, 'Generalized Sudden Weakness', 'Mild')">🛌 Severe Fatigue / Weakness</div>
+                </div>
+              </div>
+
+              <!-- Selected Symptoms Pill Container -->
+              <div id="patient-selected-symptoms-tray" style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;"></div>
+            </div>
+
+            <!-- Severity & Duration Selector -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="patient-severity-input">Symptom Severity Level:</label>
+                <select id="patient-severity-input" class="form-select">
+                  <option value="Severe" selected>🔴 Severe (Incapacitating / Unbearable)</option>
+                  <option value="Moderate">🟠 Moderate (Pronounced discomfort)</option>
+                  <option value="Mild">🟢 Mild (Tolerable / Nagging)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" for="patient-duration-input">Exact Duration of Worst Episode:</label>
+                <select id="patient-duration-input" class="form-select">
+                  <option value="Under 15 minutes">Under 15 minutes</option>
+                  <option value="15-45 minutes" selected>15 - 45 minutes</option>
+                  <option value="1-3 hours">1 - 3 hours</option>
+                  <option value="Over 3 hours">Over 3 hours</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Voice and Manual Symptom Narrative Input -->
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" for="patient-symptoms-input" style="margin-bottom: 0;">
+                  Describe additional symptoms or speak via microphone:
+                </label>
+                <!-- Voice Recognition Trigger -->
+                <button type="button" class="mic-btn" id="btn-voice-input" onclick="toggleVoiceRecognition()">
+                  <span id="mic-icon">🎙️</span> <span id="mic-label">Voice Input (Speech-to-Text)</span>
+                </button>
+              </div>
+              <textarea id="patient-symptoms-input" class="form-textarea" rows="3"
+                placeholder="Type or click the microphone to describe symptoms, radiating pain, onset details..."></textarea>
+              <div id="voice-transcript-status" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: none;"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <button class="btn btn-primary" onclick="analyzePatientSymptoms()" style="padding: 10px 22px; font-weight: 700;">
+                🔍 Run History-Aware AI Triage & Dispatch
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="clearPatientInputs()">
+                Clear Selections
+              </button>
+            </div>
+
+            <!-- Result Box -->
+            <div id="patient-triage-result" style="display: none;"></div>
+
+            <!-- Realtime Nearby Hospitals with Live Telemetry -->
+            <div id="patient-nearby-hospitals-section" style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>🏥 Realtime Nearby Emergency Hospitals</span>
+                  <span class="badge-pill" style="font-size: 10px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+                    <span class="realtime-pulse-dot"></span> Live Telemetry Active
+                  </span>
+                </h3>
+                <span id="hospital-stream-timestamp" style="font-size: 11px; color: var(--text-muted);">
+                  ● Live updates streaming
+                </span>
+              </div>
+              <div id="patient-nearby-hospitals-list" class="nearby-hospitals-grid">
+                <!-- Dynamically populated with realtime hospital distances & beds -->
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 2: PERSONAL HEALTH RECORDS (PHR) -->
+          <!-- ========================================== -->
+          <div id="patient-subview-phr" class="patient-subview" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+              <div>
+                <h3 style="font-size: 16px; font-weight: 800; color: #fff;">📋 Personal Health Record (Encrypted at Rest)</h3>
+                <div style="font-size: 12px; color: var(--text-secondary);">Manage and update your confidential medical history. Accessible only to authorized emergency providers.</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="savePatientPHR()">
+                💾 Save & Encrypt Changes
+              </button>
+            </div>
+
+            <!-- PHR Grid -->
+            <div class="grid-2">
+              <div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-name">Full Patient Name:</label>
+                  <input type="text" id="phr-name" class="form-input" />
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div class="form-group">
+                    <label class="form-label" for="phr-age">Age (Years):</label>
+                    <input type="number" id="phr-age" class="form-input" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="phr-bloodgroup">Blood Group:</label>
+                    <select id="phr-bloodgroup" class="form-select">
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-conditions">Pre-Existing Medical Conditions (comma-separated):</label>
+                  <textarea id="phr-conditions" class="form-textarea" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-allergies">Known Drug & Environmental Allergies:</label>
+                  <textarea id="phr-allergies" class="form-textarea" rows="2" style="border-color: rgba(239, 68, 68, 0.4);"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-medications">Current Regular Medications:</label>
+                  <textarea id="phr-medications" class="form-textarea" rows="2"></textarea>
+                </div>
+              </div>
+
+              <div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-surgeries">Previous Surgeries & Interventions:</label>
+                  <textarea id="phr-surgeries" class="form-textarea" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-complications">Existing Health Complications & Risk Notes:</label>
+                  <textarea id="phr-complications" class="form-textarea" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-familyhistory">Family Medical History:</label>
+                  <textarea id="phr-familyhistory" class="form-textarea" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="phr-emergencycontact">Emergency Contact Person & Phone:</label>
+                  <input type="text" id="phr-emergencycontact" class="form-input" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Past Hospital Visits & Emergency History -->
+            <div style="margin-top: 18px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+              <h4 style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 8px;">🏥 Past Hospital Visits & Emergency Admissions:</h4>
+              <div id="phr-visits-container">
+                <!-- Dynamically populated by app.js -->
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 3: HEALTH TRACKER & CHARTS       -->
+          <!-- ========================================== -->
+          <div id="patient-subview-tracker" class="patient-subview" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h3 style="font-size: 16px; font-weight: 800; color: #fff;">📈 Personal Health Tracker & Vitals Dashboard</h3>
+                <div style="font-size: 12px; color: var(--text-secondary);">Log vital signs, view historical trends, and provide baseline context for emergency assessments.</div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" onclick="loadTrackerPreset('resting')">Normal Resting</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadTrackerPreset('hypertensive')">Hypertensive Peak</button>
+                <button class="btn btn-secondary btn-sm" onclick="loadTrackerPreset('desat')">Acute Distress (SpO2 91%)</button>
+              </div>
+            </div>
+
+            <!-- Current Metrics Tile Row -->
+            <div class="tracker-stats-grid" id="tracker-stats-tiles">
+              <!-- Dynamically populated with HR, BP, SpO2, Temp, Glucose, Weight -->
+            </div>
+
+            <!-- Interactive Vitals Logger Form -->
+            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;">
+              <h4 style="font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 10px;">Log New Vital Reading:</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end;">
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Heart Rate (bpm):</label>
+                  <input type="number" id="track-hr-input" class="form-input" value="76" min="30" max="220" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Systolic BP (mmHg):</label>
+                  <input type="number" id="track-sbp-input" class="form-input" value="126" min="60" max="250" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Diastolic BP (mmHg):</label>
+                  <input type="number" id="track-dbp-input" class="form-input" value="82" min="40" max="150" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Oxygen (SpO2 %):</label>
+                  <input type="number" id="track-spo2-input" class="form-input" value="98" min="70" max="100" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Body Temp (°C):</label>
+                  <input type="number" id="track-temp-input" class="form-input" value="36.8" step="0.1" min="34" max="42" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Glucose (mg/dL):</label>
+                  <input type="number" id="track-glucose-input" class="form-input" value="110" min="40" max="600" />
+                </div>
+                <div>
+                  <button class="btn btn-primary btn-full" onclick="saveHealthTrackerEntry()" style="height: 38px;">
+                    ➕ Log Reading
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interactive Historical Trend Line Charts (Heart Rate & Blood Pressure & SpO2) -->
+            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 13.5px; font-weight: 700; color: #fff;">📊 Longitudinal Vitals Trend Graph</h4>
+                <div style="display: flex; gap: 12px; font-size: 11px;">
+                  <span style="color: #ef4444;">● Heart Rate</span>
+                  <span style="color: #60a5fa;">● Systolic BP</span>
+                  <span style="color: #34d399;">● Oxygen (SpO2)</span>
+                </div>
+              </div>
+              <div id="tracker-chart-container" style="width: 100%; height: 200px; position: relative;">
+                <!-- Dynamically generated SVG graph in app.js -->
+              </div>
+            </div>
+
+            <!-- Historical Log Table -->
+            <h4 style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 8px;">Recent Readings History:</h4>
+            <div style="overflow-x: auto; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Heart Rate</th>
+                    <th>Blood Pressure</th>
+                    <th>SpO2</th>
+                    <th>Temperature</th>
+                    <th>Blood Glucose</th>
+                    <th>Weight</th>
+                  </tr>
+                </thead>
+                <tbody id="tracker-log-tbody">
+                  <!-- Populated by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 4: LIVE ASSISTANCE & FIRST AID    -->
+          <!-- ========================================== -->
+          <div id="patient-subview-firstaid" class="patient-subview" style="display: none;">
+            <div id="firstaid-live-content">
+              <!-- Dynamically populated with active ambulance status, ETA countdown and category-specific first aid -->
             </div>
           </div>
 

@@ -1,0 +1,627 @@
+{
+  "patients": [
+    {
+      "id": "PAT_001",
+      "name": "Rajesh Kumar",
+      "age": 58,
+      "gender": "Male",
+      "bloodGroup": "B+",
+      "contact": "+91 98450 12345",
+      "emergencyContact": "Sunita Kumar (Wife) - +91 98450 67890",
+      "address": "Flat 402, Richmond Palms, Richmond Town, Bengaluru",
+      "medicalConditions": [
+        "Coronary Artery Disease (CAD)",
+        "Hypertension (Grade 1)",
+        "Hyperlipidemia"
+      ],
+      "allergies": [
+        "Penicillin (Moderate rash / swelling)",
+        "Sulfa Drugs"
+      ],
+      "currentMedications": [
+        "Aspirin 75mg daily",
+        "Atorvastatin 20mg nocte",
+        "Amlodipine 5mg daily"
+      ],
+      "previousSurgeries": [
+        "PCI with Drug-Eluting Stent (LAD) - 2021",
+        "Laparoscopic Appendectomy - 2012"
+      ],
+      "existingComplications": "Mild exertional angina, controlled on statins and antiplatelets.",
+      "familyHistory": "Father had Myocardial Infarction at age 54; Mother has Type 2 Diabetes.",
+      "pastHospitalVisits": [
+        {
+          "date": "2024-08-15",
+          "facility": "Metro Heart & Super-Specialty Hospital",
+          "reason": "Routine post-PCI annual stress echo and cardiology review",
+          "outcome": "LVEF 55%, stent patent, exercise tolerance satisfactory"
+        },
+        {
+          "date": "2023-11-04",
+          "facility": "City Central Trauma & General Hospital",
+          "reason": "Transient dizziness and hypertension spike (165/100)",
+          "outcome": "Medication titrated to Amlodipine 5mg"
+        }
+      ],
+      "previousEmergencyCases": [
+        {
+          "caseId": "CASE-2021-992",
+          "date": "2021-04-12",
+          "chiefComplaint": "Crushing retrosternal chest pain with diaphoresis (Acute STEMI)",
+          "urgency": "Emergency",
+          "dispatchedAmbulance": "AMB-9021",
+          "hospital": "Metro Heart & Super-Specialty Hospital",
+          "doorToBalloonMinutes": 42
+        }
+      ],
+      "healthTracker": [
+        {
+          "timestamp": "2026-11-01T08:00:00Z",
+          "hr": 74,
+          "sbp": 124,
+          "dbp": 82,
+          "spo2": 98,
+          "temp": 36.7,
+          "glucose": 105,
+          "weight": 76.5
+        },
+        {
+          "timestamp": "2026-11-02T08:00:00Z",
+          "hr": 76,
+          "sbp": 128,
+          "dbp": 84,
+          "spo2": 98,
+          "temp": 36.8,
+          "glucose": 110,
+          "weight": 76.4
+        },
+        {
+          "timestamp": "2026-11-03T08:30:00Z",
+          "hr": 72,
+          "sbp": 122,
+          "dbp": 80,
+          "spo2": 97,
+          "temp": 36.6,
+          "glucose": 102,
+          "weight": 76.2
+        },
+        {
+          "timestamp": "2026-11-04T08:00:00Z",
+          "hr": 78,
+          "sbp": 130,
+          "dbp": 85,
+          "spo2": 97,
+          "temp": 36.9,
+          "glucose": 114,
+          "weight": 76.5
+        },
+        {
+          "timestamp": "2026-11-05T08:00:00Z",
+          "hr": 82,
+          "sbp": 134,
+          "dbp": 88,
+          "spo2": 96,
+          "temp": 37.0,
+          "glucose": 118,
+          "weight": 76.8
+        },
+        {
+          "timestamp": "2026-11-06T07:30:00Z",
+          "hr": 92,
+          "sbp": 138,
+          "dbp": 90,
+          "spo2": 95,
+          "temp": 37.1,
+          "glucose": 122,
+          "weight": 77.0
+        }
+      ]
+    },
+    {
+      "id": "PAT_002",
+      "name": "Priya Sharma",
+      "age": 34,
+      "gender": "Female",
+      "bloodGroup": "O+",
+      "contact": "+91 97401 23456",
+      "emergencyContact": "Rohan Sharma (Brother) - +91 97401 78901",
+      "address": "B-301, Indiranagar 100ft Road, Bengaluru",
+      "medicalConditions": [
+        "Moderate Persistent Bronchial Asthma",
+        "Seasonal Allergic Rhinitis"
+      ],
+      "allergies": [
+        "Aspirin / NSAIDs (Triggers bronchospasm)",
+        "Dust Mites & Pollen"
+      ],
+      "currentMedications": [
+        "Budesonide/Formoterol Turbuhaler (160/4.5) 1 puff BID",
+        "Levocetirizine 5mg PRN"
+      ],
+      "previousSurgeries": [
+        "None"
+      ],
+      "existingComplications": "History of acute severe asthma exacerbation requiring ICU nebulization.",
+      "familyHistory": "Maternal asthma and atopic dermatitis.",
+      "pastHospitalVisits": [
+        {
+          "date": "2024-01-10",
+          "facility": "Sunrise Pulmonary & Critical Care Hospital",
+          "reason": "Severe wheezing episode following winter fog",
+          "outcome": "Discharged after 6h observation and steroid burst"
+        }
+      ],
+      "previousEmergencyCases": [],
+      "healthTracker": [
+        {
+          "timestamp": "2026-11-03T09:00:00Z",
+          "hr": 78,
+          "sbp": 116,
+          "dbp": 76,
+          "spo2": 98,
+          "temp": 36.6,
+          "glucose": 94,
+          "weight": 58.2
+        },
+        {
+          "timestamp": "2026-11-04T09:00:00Z",
+          "hr": 80,
+          "sbp": 118,
+          "dbp": 78,
+          "spo2": 97,
+          "temp": 36.7,
+          "glucose": 96,
+          "weight": 58.0
+        },
+        {
+          "timestamp": "2026-11-05T09:00:00Z",
+          "hr": 84,
+          "sbp": 120,
+          "dbp": 80,
+          "spo2": 96,
+          "temp": 36.8,
+          "glucose": 98,
+          "weight": 58.3
+        }
+      ]
+    },
+    {
+      "id": "PAT_003",
+      "name": "Amitav Sengupta",
+      "age": 71,
+      "gender": "Male",
+      "bloodGroup": "A-",
+      "contact": "+91 94480 34567",
+      "emergencyContact": "Dr. R. Sengupta (Son) - +91 94480 89012",
+      "address": "12 Jayanagar 4th Block, Bengaluru",
+      "medicalConditions": [
+        "Type 2 Diabetes Mellitus (20 years)",
+        "Atrial Fibrillation (Non-valvular)",
+        "Previous TIA (2022)"
+      ],
+      "allergies": [
+        "Iodinated Radiocontrast (Moderate urticaria)"
+      ],
+      "currentMedications": [
+        "Apixaban 5mg BID",
+        "Metformin 1000mg BID",
+        "Metoprolol Succinate 50mg daily"
+      ],
+      "previousSurgeries": [
+        "Bilateral Cataract Extraction - 2018",
+        "Right Knee Arthroscopy - 2015"
+      ],
+      "existingComplications": "High CHA2DS2-VASc score (4 points), requires prompt neurovascular evaluation if neurological deficit occurs.",
+      "familyHistory": "Mother had Ischemic Stroke at age 75.",
+      "pastHospitalVisits": [
+        {
+          "date": "2024-05-20",
+          "facility": "Apex Neurosciences & Comprehensive Stroke Center",
+          "reason": "Carotid duplex Doppler screening & anticoagulation check",
+          "outcome": "Right ICA 30% stenosis, stable on Apixaban"
+        }
+      ],
+      "previousEmergencyCases": [],
+      "healthTracker": [
+        {
+          "timestamp": "2026-11-04T08:00:00Z",
+          "hr": 76,
+          "sbp": 136,
+          "dbp": 86,
+          "spo2": 97,
+          "temp": 36.8,
+          "glucose": 135,
+          "weight": 72.0
+        },
+        {
+          "timestamp": "2026-11-05T08:00:00Z",
+          "hr": 78,
+          "sbp": 140,
+          "dbp": 88,
+          "spo2": 96,
+          "temp": 36.9,
+          "glucose": 142,
+          "weight": 72.2
+        },
+        {
+          "timestamp": "2026-11-06T08:00:00Z",
+          "hr": 88,
+          "sbp": 164,
+          "dbp": 96,
+          "spo2": 96,
+          "temp": 37.0,
+          "glucose": 150,
+          "weight": 72.5
+        }
+      ]
+    }
+  ],
+  "ambulances": [
+    {
+      "id": "AMB-9021",
+      "name": "Paramedic Unit 9021 (Advanced Life Support)",
+      "type": "ALS - Type D",
+      "paramedic": "Vikram Sharma",
+      "status": "Available",
+      "currentCaseId": null,
+      "location": {
+        "lat": 12.9520,
+        "lng": 77.6010,
+        "sector": "Richmond Central Corridor"
+      },
+      "equipment": [
+        "Lifepack 15 Monitor/Defibrillator",
+        "Hamilton Transport Ventilator",
+        "Lucas-3 Chest Compression",
+        "Video Laryngoscope"
+      ],
+      "lastMaintained": "2026-11-01"
+    },
+    {
+      "id": "AMB-8044",
+      "name": "Paramedic Unit 8044 (Mobile Intensive Care)",
+      "type": "MICU - Type D",
+      "paramedic": "Anita Deshmukh",
+      "status": "Available",
+      "currentCaseId": null,
+      "location": {
+        "lat": 12.9380,
+        "lng": 77.6180,
+        "sector": "Koramangala South Ring"
+      },
+      "equipment": [
+        "Zoll X Series Defibrillator",
+        "Transport Ventilator",
+        "Point-of-Care Troponin/I-STAT Analyzer"
+      ],
+      "lastMaintained": "2026-11-03"
+    },
+    {
+      "id": "AMB-7012",
+      "name": "Paramedic Unit 7012 (Trauma Rapid Response)",
+      "type": "Trauma ALS",
+      "paramedic": "K. Srinivas",
+      "status": "Available",
+      "currentCaseId": null,
+      "location": {
+        "lat": 12.9810,
+        "lng": 77.6350,
+        "sector": "Indiranagar Metro Hub"
+      },
+      "equipment": [
+        "Splints & Traction Kit",
+        "Blood Infuser Warmer",
+        "Portable Ultrasound FAST"
+      ],
+      "lastMaintained": "2026-10-28"
+    }
+  ],
+  "hospitals": [
+    {
+      "id": "HOSP_1",
+      "name": "Metro Heart & Super-Specialty Hospital",
+      "type": "Cardiac & Multi-Specialty",
+      "lat": 12.9716,
+      "lng": 77.5946,
+      "address": "42 Brigade Rd, Central Metro",
+      "total_ed_beds": 28,
+      "available_ed_beds": 8,
+      "total_icu_beds": 16,
+      "available_icu_beds": 4,
+      "total_cardiac_icu_beds": 8,
+      "available_cardiac_icu_beds": 3,
+      "total_ventilators": 12,
+      "ventilators_free": 6,
+      "total_emergency_ors": 3,
+      "emergency_ors_available": 2,
+      "has_cath_lab": true,
+      "cath_lab_available": true,
+      "has_stroke_unit": false,
+      "stroke_unit_available": false,
+      "trauma_level": "Level 3",
+      "ct_scan_operational": true,
+      "ecmo_available": true,
+      "specialists_on_duty": [
+        {
+          "role": "Interventional Cardiologist",
+          "name": "Dr. V. Rao",
+          "available": true
+        },
+        {
+          "role": "Intensivist / Critical Care",
+          "name": "Dr. S. Nair",
+          "available": true
+        },
+        {
+          "role": "General Emergency Physician",
+          "name": "Dr. A. Verma",
+          "available": true
+        }
+      ],
+      "last_updated_minutes_ago": 2,
+      "is_diverting": false,
+      "divert_reason": null
+    },
+    {
+      "id": "HOSP_2",
+      "name": "City Central Trauma & General Hospital",
+      "type": "Level-1 Trauma & General",
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "address": "100 Outer Ring Road, South Sector",
+      "total_ed_beds": 45,
+      "available_ed_beds": 12,
+      "total_icu_beds": 24,
+      "available_icu_beds": 6,
+      "total_cardiac_icu_beds": 6,
+      "available_cardiac_icu_beds": 2,
+      "total_ventilators": 18,
+      "ventilators_free": 9,
+      "total_emergency_ors": 5,
+      "emergency_ors_available": 3,
+      "has_cath_lab": false,
+      "cath_lab_available": false,
+      "has_stroke_unit": true,
+      "stroke_unit_available": true,
+      "trauma_level": "Level 1",
+      "ct_scan_operational": true,
+      "ecmo_available": false,
+      "specialists_on_duty": [
+        {
+          "role": "Trauma & Orthopedic Surgeon",
+          "name": "Dr. K. Patel",
+          "available": true
+        },
+        {
+          "role": "Emergency Medicine Consultant",
+          "name": "Dr. M. Joseph",
+          "available": true
+        },
+        {
+          "role": "Anesthesiologist",
+          "name": "Dr. R. Alva",
+          "available": true
+        }
+      ],
+      "last_updated_minutes_ago": 5,
+      "is_diverting": false,
+      "divert_reason": null
+    },
+    {
+      "id": "HOSP_3",
+      "name": "Apex Neurosciences & Comprehensive Stroke Center",
+      "type": "Neurology & Tertiary Care",
+      "lat": 12.9856,
+      "lng": 77.6408,
+      "address": "88 Indiranagar Main, East Sector",
+      "total_ed_beds": 20,
+      "available_ed_beds": 5,
+      "total_icu_beds": 14,
+      "available_icu_beds": 3,
+      "total_cardiac_icu_beds": 2,
+      "available_cardiac_icu_beds": 1,
+      "total_ventilators": 10,
+      "ventilators_free": 5,
+      "total_emergency_ors": 2,
+      "emergency_ors_available": 1,
+      "has_cath_lab": false,
+      "cath_lab_available": false,
+      "has_stroke_unit": true,
+      "stroke_unit_available": true,
+      "trauma_level": "Level 2",
+      "ct_scan_operational": true,
+      "ecmo_available": false,
+      "specialists_on_duty": [
+        {
+          "role": "Vascular Neurologist",
+          "name": "Dr. P. Sundaram",
+          "available": true
+        },
+        {
+          "role": "Neuro-Intensivist",
+          "name": "Dr. E. Thomas",
+          "available": true
+        }
+      ],
+      "last_updated_minutes_ago": 8,
+      "is_diverting": false,
+      "divert_reason": null
+    },
+    {
+      "id": "HOSP_4",
+      "name": "St. Jude Community & Emergency Hospital",
+      "type": "Secondary Community Care",
+      "lat": 12.9515,
+      "lng": 77.5750,
+      "address": "15 Lalbagh West Road, South-West",
+      "total_ed_beds": 18,
+      "available_ed_beds": 6,
+      "total_icu_beds": 6,
+      "available_icu_beds": 1,
+      "total_cardiac_icu_beds": 2,
+      "available_cardiac_icu_beds": 0,
+      "total_ventilators": 4,
+      "ventilators_free": 2,
+      "total_emergency_ors": 1,
+      "emergency_ors_available": 1,
+      "has_cath_lab": false,
+      "cath_lab_available": false,
+      "has_stroke_unit": false,
+      "stroke_unit_available": false,
+      "trauma_level": "Level 3",
+      "ct_scan_operational": false,
+      "ecmo_available": false,
+      "specialists_on_duty": [
+        {
+          "role": "General Emergency Physician",
+          "name": "Dr. H. Roy",
+          "available": true
+        }
+      ],
+      "last_updated_minutes_ago": 12,
+      "is_diverting": false,
+      "divert_reason": null
+    },
+    {
+      "id": "HOSP_5",
+      "name": "Sunrise Pulmonary & Critical Care Hospital",
+      "type": "Pulmonology & Critical Care",
+      "lat": 13.0020,
+      "lng": 77.5810,
+      "address": "210 Malleshwaram North, North Sector",
+      "total_ed_beds": 22,
+      "available_ed_beds": 7,
+      "total_icu_beds": 12,
+      "available_icu_beds": 5,
+      "total_cardiac_icu_beds": 2,
+      "available_cardiac_icu_beds": 1,
+      "total_ventilators": 14,
+      "ventilators_free": 8,
+      "total_emergency_ors": 2,
+      "emergency_ors_available": 2,
+      "has_cath_lab": false,
+      "cath_lab_available": false,
+      "has_stroke_unit": false,
+      "stroke_unit_available": false,
+      "trauma_level": "Level 3",
+      "ct_scan_operational": true,
+      "ecmo_available": true,
+      "specialists_on_duty": [
+        {
+          "role": "Pulmonologist & Intensivist",
+          "name": "Dr. D. Bannerjee",
+          "available": true
+        }
+      ],
+      "last_updated_minutes_ago": 3,
+      "is_diverting": false,
+      "divert_reason": null
+    },
+    {
+      "id": "HOSP_6",
+      "name": "Green Valley Urgent Care & Polyclinic",
+      "type": "Urgent Care & Outpatient",
+      "lat": 12.9210,
+      "lng": 77.5850,
+      "address": "12 Jayanagar 4th Block, South Hub",
+      "total_ed_beds": 10,
+      "available_ed_beds": 6,
+      "total_icu_beds": 0,
+      "available_icu_beds": 0,
+      "total_cardiac_icu_beds": 0,
+      "available_cardiac_icu_beds": 0,
+      "total_ventilators": 0,
+      "ventilators_free": 0,
+      "total_emergency_ors": 0,
+      "emergency_ors_available": 0,
+      "has_cath_lab": false,
+      "cath_lab_available": false,
+      "has_stroke_unit": false,
+      "stroke_unit_available": false,
+      "trauma_level": "None",
+      "ct_scan_operational": false,
+      "ecmo_available": false,
+      "specialists_on_duty": [
+        {
+          "role": "Family Physician",
+          "name": "Dr. L. Sharma",
+          "available": true
+        }
+      ],
+      "last_updated_minutes_ago": 25,
+      "is_diverting": false,
+      "divert_reason": null
+    }
+  ],
+  "cases": [
+    {
+      "id": "CASE-9021",
+      "patientId": "PAT_001",
+      "patientName": "Rajesh Kumar",
+      "patientAge": 58,
+      "patientGender": "Male",
+      "category": "Cardiac - Acute STEMI",
+      "symptoms": "Crushing retrosternal chest pain radiating to left jaw and arm for 45 mins, diaphoresis, shortness of breath",
+      "symptomOnset": "30 - 60 minutes ago (Critical Window)",
+      "vitals": {
+        "hr": 108,
+        "sbp": 88,
+        "dbp": 58,
+        "spo2": 93,
+        "rr": 24,
+        "temp": 37.1,
+        "glucose": 122,
+        "avpu": "Alert",
+        "gcs": 15
+      },
+      "location": {
+        "lat": 12.9550,
+        "lng": 77.6050,
+        "name": "Richmond Town, Central Ward, Bengaluru"
+      },
+      "urgency": "Emergency",
+      "status": "Accepted",
+      "stageIndex": 2,
+      "statusHistory": [
+        {
+          "stage": "New Request",
+          "timestamp": "2026-11-06T11:45:00Z",
+          "actor": "PAT_001 (Patient Portal)"
+        },
+        {
+          "stage": "Accepted",
+          "timestamp": "2026-11-06T11:46:10Z",
+          "actor": "AMB-9021 (Paramedic V. Sharma)"
+        }
+      ],
+      "dispatchedAmbulanceId": "AMB-9021",
+      "allocatedHospitalId": "HOSP_1",
+      "allocatedHospitalName": "Metro Heart & Super-Specialty Hospital",
+      "etaMinutes": 8,
+      "hospitalDecision": "Pending",
+      "isPriority1": true,
+      "createdAt": "2026-11-06T11:45:00Z",
+      "completedAt": null
+    }
+  ],
+  "completedCases": [
+    {
+      "id": "CASE-HIST-8812",
+      "patientId": "PAT_003",
+      "patientName": "Amitav Sengupta",
+      "patientAge": 71,
+      "patientGender": "Male",
+      "category": "Neurological - Acute Ischemic Stroke",
+      "symptoms": "Sudden onset right-sided weakness, facial droop, slurred speech",
+      "urgency": "Emergency",
+      "dispatchedAmbulanceId": "AMB-9021",
+      "allocatedHospitalId": "HOSP_3",
+      "allocatedHospitalName": "Apex Neurosciences & Comprehensive Stroke Center",
+      "status": "Case Completed",
+      "stageIndex": 8,
+      "createdAt": "2026-11-05T14:10:00Z",
+      "completedAt": "2026-11-05T15:22:00Z",
+      "outcomeNotes": "Successful IV thrombolysis administered within golden window; handed over to Dr. P. Sundaram (Vascular Neurology)."
+    }
+  ]
+}
