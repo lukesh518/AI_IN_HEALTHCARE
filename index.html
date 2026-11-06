@@ -528,6 +528,20 @@
           </div>
 
           <div class="map-container" style="flex: 1; height: 100%; position: relative; overflow: hidden;">
+            <!-- Active Mission Status & Movement Speed Controller -->
+            <div id="map-sim-controls" class="map-sim-control-bar" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="map-mission-stage-badge" id="map-sim-mission-stage">Leg 1: En Route to Patient</span>
+                <span style="font-size: 11px; color: var(--text-secondary);" id="map-sim-telemetry">ETA: 8 mins • Dist: 3.2 km</span>
+              </div>
+              <div class="map-speed-btn-group" onclick="event.stopPropagation()">
+                <button class="map-speed-btn active" id="btn-speed-1x" onclick="setSimSpeed(1)">1x</button>
+                <button class="map-speed-btn" id="btn-speed-2x" onclick="setSimSpeed(2)">2x</button>
+                <button class="map-speed-btn" id="btn-speed-5x" onclick="setSimSpeed(5)">5x</button>
+                <button class="map-speed-btn" id="btn-sim-pause" onclick="toggleSimPause()">⏸️ Pause</button>
+              </div>
+            </div>
+
             <div class="map-header" id="map-inner-header" style="display: none;">
               <div class="map-badge" id="map-status-pill">
                 🚑 <strong>Ambulance #9021</strong>: En Route • Live OSRM Road Route
@@ -594,6 +608,9 @@
             </button>
             <button class="subnav-btn" id="btn-hosp-sub-completed" onclick="switchHospitalSubTab('completed')">
               📜 Completed Patient Admissions
+            </button>
+            <button class="subnav-btn" id="btn-hosp-sub-appointments" onclick="switchHospitalSubTab('appointments')">
+              📅 Outpatient Appointments & Rosters
             </button>
           </div>
 
@@ -731,6 +748,61 @@
             </div>
           </div>
 
+          <!-- SUB-VIEW 4: OUTPATIENT APPOINTMENTS & DOCTOR ROSTERS -->
+          <div id="hospital-subview-appointments" class="hospital-subview" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 800; color: white;">📅 Outpatient Appointment Management</h3>
+                <div style="font-size: 12px; color: var(--text-secondary);">Manage incoming booking requests, approve or cancel slots, and configure doctor rosters</div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <span class="status-indicator">Double-Booking Guard Active</span>
+              </div>
+            </div>
+
+            <!-- Section 1: Incoming Patient Bookings Table -->
+            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 13.5px; font-weight: 700; color: #60a5fa; margin: 0;">📥 Incoming & Active Outpatient Bookings</h4>
+                <div style="font-size: 11.5px; color: var(--text-muted);" id="hosp-appt-count-badge">2 Appointments Registered</div>
+              </div>
+
+              <div style="overflow-x: auto;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Booking ID</th>
+                      <th>Patient</th>
+                      <th>Attending Doctor</th>
+                      <th>Date</th>
+                      <th>Time Slot</th>
+                      <th>Reason / Triage Symptoms</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="hospital-appointments-tbody">
+                    <!-- Populated dynamically by app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Section 2: Specialist Roster & Slot Schedule Management -->
+            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <div>
+                  <h4 style="font-size: 13.5px; font-weight: 700; color: #34d399; margin: 0;">👨‍⚕️ Specialist Doctors & Availability Management</h4>
+                  <div style="font-size: 11.5px; color: var(--text-secondary);">Toggle duty status and adjust available time slots for outpatient clinics</div>
+                </div>
+              </div>
+
+              <div id="hospital-doctors-management-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px;">
+                <!-- Populated dynamically by app.js -->
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -769,6 +841,9 @@
             </button>
             <button class="subnav-btn" id="btn-patient-sub-firstaid" onclick="switchPatientSubTab('firstaid')">
               🛡️ Live Assistance & First-Aid
+            </button>
+            <button class="subnav-btn" id="btn-patient-sub-appointments" onclick="switchPatientSubTab('appointments')">
+              📅 Outpatient Appointments
             </button>
           </div>
 
@@ -1122,6 +1197,93 @@
           <div id="patient-subview-firstaid" class="patient-subview" style="display: none;">
             <div id="firstaid-live-content">
               <!-- Dynamically populated with active ambulance status, ETA countdown and category-specific first aid -->
+            </div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- SUB-VIEW 5: OUTPATIENT APPOINTMENT BOOKING -->
+          <!-- ========================================== -->
+          <div id="patient-subview-appointments" class="patient-subview" style="display: none;">
+            <!-- Interactive Booking Wizard Card -->
+            <div class="appointment-booking-wizard">
+              <div class="wizard-step-header">
+                <span class="step-num">1</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Select Medical Facility / Hospital</h4>
+                  <div style="font-size: 11.5px; color: var(--text-secondary);">Choose a participating hospital or clinic for your outpatient assessment</div>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 18px;">
+                <select id="appt-hospital-select" class="form-select" onchange="onApptHospitalChanged(this.value)">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+
+              <div class="wizard-step-header">
+                <span class="step-num">2</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Select Specialist Doctor</h4>
+                  <div style="font-size: 11.5px; color: var(--text-secondary);">Available physicians matched to outpatient specializations</div>
+                </div>
+              </div>
+              <div id="appt-doctors-grid" class="doctors-grid">
+                <!-- Populated dynamically with doctor cards -->
+              </div>
+
+              <div class="wizard-step-header" style="margin-top: 18px;">
+                <span class="step-num">3</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Select Appointment Date & Time Slot</h4>
+                  <div style="font-size: 11.5px; color: var(--text-secondary);">Slots updated live from hospital scheduling system (prevents double-booking)</div>
+                </div>
+              </div>
+              <div class="date-selector-row" id="appt-date-pills">
+                <!-- Populated dynamically with date pills -->
+              </div>
+              <div class="slots-grid" id="appt-slots-grid">
+                <!-- Populated dynamically with time slot pills -->
+              </div>
+
+              <div class="wizard-step-header" style="margin-top: 18px;">
+                <span class="step-num">4</span>
+                <div>
+                  <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Consultation Reason & Symptoms Summary</h4>
+                  <div style="font-size: 11.5px; color: var(--text-secondary);">Provide context for the physician (auto-filled if triaged from Symptom Checker)</div>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <textarea id="appt-reason-input" class="form-textarea" rows="2" placeholder="e.g. Mild headache and intermittent dizziness for 2 days. Requesting general physician review."></textarea>
+              </div>
+
+              <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 16px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetAppointmentBookingForm()">
+                  🔄 Clear Selection
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-confirm-booking" onclick="confirmAppointmentBooking()" style="font-weight: 700;">
+                  📅 Confirm & Book Outpatient Appointment
+                </button>
+              </div>
+
+              <!-- Confirmation Receipt Display (Shown on success) -->
+              <div id="appt-confirmation-box" style="display: none; margin-top: 20px;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- My Scheduled Appointments Section -->
+            <div style="margin-top: 28px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h3 style="font-size: 15px; font-weight: 800; color: #fff; margin: 0;">📅 My Appointments</h3>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn btn-sm btn-outline active" id="btn-appt-filter-upcoming" onclick="filterPatientAppointments('Upcoming')">Upcoming</button>
+                  <button class="btn btn-sm btn-outline" id="btn-appt-filter-completed" onclick="filterPatientAppointments('Completed')">Completed</button>
+                  <button class="btn btn-sm btn-outline" id="btn-appt-filter-cancelled" onclick="filterPatientAppointments('Cancelled')">Cancelled</button>
+                  <button class="btn btn-sm btn-outline" id="btn-appt-filter-all" onclick="filterPatientAppointments('All')">All</button>
+                </div>
+              </div>
+              <div id="patient-appointments-list">
+                <!-- Dynamically populated with appointment cards -->
+              </div>
             </div>
           </div>
 

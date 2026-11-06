@@ -34,12 +34,31 @@ const State = {
   patients: [],
   ambulances: [],
   completedCases: [],
+  appointments: [],
+
+  // Outpatient Appointment Booking Wizard State
+  selectedApptHospitalId: "HOSP_1",
+  selectedApptDoctorId: null,
+  selectedApptDate: "2026-11-08",
+  selectedApptSlot: null,
+  apptFilter: "Upcoming",
+
+  // Realistic Road Route Ambulance Movement State
+  ambulanceMovementTimer: null,
+  simSpeedMultiplier: 1,
+  isSimPaused: false,
+  activeLeg: "idle", // 'idle' | 'leg1' (To Patient) | 'leg2' (To Hospital)
+  currentRouteWaypoints: [],
+  currentRouteIndex: 0,
+  ambulanceCurrentPos: { lat: 12.9520, lng: 77.6010 },
+  remainingDistKm: 0,
+  remainingEtaMin: 0,
 
   // Active Contexts & Sub-Tabs
   activePatientId: "PAT_001",
-  patientSubTab: "triage", // 'triage' | 'phr' | 'tracker' | 'firstaid'
+  patientSubTab: "triage", // 'triage' | 'phr' | 'tracker' | 'firstaid' | 'appointments'
   ambulanceSubTab: "dispatch", // 'dispatch' | 'handover' | 'history'
-  hospitalSubTab: "capacity", // 'capacity' | 'inbound' | 'completed'
+  hospitalSubTab: "capacity", // 'capacity' | 'inbound' | 'completed' | 'appointments'
 
   // Interactive Symptom State
   selectedSymptoms: [],
@@ -230,6 +249,60 @@ const FIRST_AID_PROTOCOLS = {
       "Do NOT apply a makeshift tourniquet around the neck, head, or torso."
     ]
   },
+  seizures: {
+    title: "Active Seizure / Convulsions / Epilepsy Episode",
+    category: "Neurology",
+    alertBadge: "⚡ SEIZURE FIRST-AID PROTOCOL (NEUROLOGICAL SAFETY)",
+    dos: [
+      "Ease the person to the floor and place a soft jacket or folded towel under their head.",
+      "Gently roll the person onto their side (recovery position) once jerking subsides to keep airway clear.",
+      "Clear away hard, sharp, or dangerous objects from the surrounding area.",
+      "Time the seizure from the exact start to end.",
+      "Loosen tight neckwear (ties, collars) and stay with them until they are fully awake and coherent."
+    ],
+    donts: [
+      "Do NOT hold the person down or attempt to physically restrain their convulsive movements.",
+      "Do NOT put anything in their mouth (no spoons, fingers, or objects) — people cannot swallow their tongue.",
+      "Do NOT give CPR or chest compressions during an active convulsion.",
+      "Do NOT offer food, liquids, or oral medications until the person is 100% conscious and alert."
+    ]
+  },
+  burns: {
+    title: "Thermal Burns / Scalds / Chemical Burn Exposure",
+    category: "Trauma",
+    alertBadge: "🔥 ACUTE BURN TREATMENT PROTOCOL (TISSUE COOLING)",
+    dos: [
+      "Cool the burn immediately under cool or lukewarm running tap water for 10-20 minutes.",
+      "Gently remove jewelry, rings, belts, or tight clothing around the burned area before swelling starts.",
+      "Cover the burn loosely with sterile non-stick gauze or clean plastic cling film.",
+      "Keep the patient warm with a clean blanket over unaffected areas to prevent hypothermia.",
+      "Elevate the burned limb above heart level if possible to reduce swelling."
+    ],
+    donts: [
+      "Do NOT apply ice, ice water, butter, oil, toothpaste, or home ointments to the burn.",
+      "Do NOT burst or puncture blisters — intact blisters protect against severe infection.",
+      "Do NOT peel away clothing that is firmly stuck to burned skin.",
+      "Do NOT breathe, cough, or blow over the burned tissue."
+    ]
+  },
+  fractures: {
+    title: "Suspected Bone Fracture / Dislocation / Severe Limb Trauma",
+    category: "Orthopedics",
+    alertBadge: "🦴 FRACTURE & SPINAL IMMOBILIZATION PROTOCOL",
+    dos: [
+      "Support and immobilize the injured limb in the exact position you found it.",
+      "Apply an ice pack wrapped in a clean towel for 10-15 minutes to reduce pain and swelling.",
+      "If bone breaks through skin (open fracture), cover with sterile dressing and control bleeding with gentle pressure around edges.",
+      "Check circulation past the injury (feel for warm fingers/toes and pulse).",
+      "Keep the patient still, lying down if dizzy or in shock."
+    ],
+    donts: [
+      "Do NOT attempt to straighten, realign, or push a deformed bone back into place.",
+      "Do NOT allow the patient to walk or bear weight on an injured leg or foot.",
+      "Do NOT move someone with suspected neck, spine, or pelvis injury unless immediate life hazard.",
+      "Do NOT apply ice directly against bare skin."
+    ]
+  },
   anaphylaxis: {
     title: "Severe Allergic Anaphylaxis (Airway Swelling / Collapse)",
     category: "Allergy",
@@ -246,6 +319,78 @@ const FIRST_AID_PROTOCOLS = {
       "Do NOT rely on oral antihistamines (like Benadryl) — they are too slow to stop airway closure.",
       "Do NOT hesitate to inject Epinephrine — delays in administration can be fatal.",
       "Do NOT leave the person alone."
+    ]
+  },
+  fever: {
+    title: "High Fever / Febrile Illness (>38.5°C / 101.3°F)",
+    category: "General",
+    alertBadge: "🌡️ FEBRILE MANAGEMENT & DEHYDRATION PROTOCOL",
+    dos: [
+      "Encourage frequent small sips of cool water, oral rehydration solution (ORS), or clear broth.",
+      "Dress in light, breathable cotton clothing and ensure a comfortable room temperature (20-22°C).",
+      "Apply lukewarm sponge baths to forehead, neck, and armpits if fever exceeds 39°C (102.2°F).",
+      "Rest quietly in bed and monitor temperature every 1-2 hours.",
+      "Administer Paracetamol (Acetaminophen) as per age/weight package instructions if recommended."
+    ],
+    donts: [
+      "Do NOT use ice baths, cold showers, or alcohol rubs — this causes violent shivering and spikes core temperature.",
+      "Do NOT bundle the person in heavy blankets or sweat jackets.",
+      "Do NOT give Aspirin to children or teenagers under 19 (risk of fatal Reye's syndrome).",
+      "Do NOT ignore red flags: stiff neck, purple petechial rash, confusion, or difficulty breathing."
+    ]
+  },
+  vomiting: {
+    title: "Persistent Vomiting / Nausea / Acute Dehydration",
+    category: "Gastrointestinal",
+    alertBadge: "💧 GASTROINTESTINAL DEHYDRATION & AIRWAY PROTOCOL",
+    dos: [
+      "Keep the patient upright or lying on their side to prevent choking / aspiration.",
+      "Wait 30-60 minutes after vomiting stops, then introduce small sips (1 teaspoon) of ORS or electrolyte water every 5 minutes.",
+      "Rinse mouth with plain water to remove acidic digestive fluids from teeth and throat.",
+      "Rest in a quiet room and avoid strong cooking odors or bright lights.",
+      "Watch for dehydration signs: dry tongue, dark urine, sunken eyes, or extreme dizziness on standing."
+    ],
+    donts: [
+      "Do NOT allow the person to lie flat on their back while nauseous or drowsy.",
+      "Do NOT chug large glasses of water or fruit juice — sudden fluid volume triggers immediate vomiting.",
+      "Do NOT consume dairy products, caffeine, alcohol, or greasy/spicy foods.",
+      "Do NOT self-medicate with anti-emetics without clinician advice if poisoning or bowel obstruction is possible."
+    ]
+  },
+  abdominal: {
+    title: "Acute Severe Abdominal Pain / Suspected Appendicitis",
+    category: "Surgical / GI",
+    alertBadge: "⚠️ ACUTE ABDOMEN EVALUATION PROTOCOL",
+    dos: [
+      "Help the patient lie down in a comfortable position, often with knees bent or drawn to chest.",
+      "Keep the patient completely calm, warm, and resting.",
+      "Note the pain's exact location, whether it moves (e.g. from navel to right lower abdomen), and onset time.",
+      "Monitor breathing and pulse rate.",
+      "Seek prompt emergency surgical/medical assessment if pain is severe, constant, or worsening."
+    ],
+    donts: [
+      "Do NOT give food, milk, or fluids (patient may require urgent emergency surgery under anesthesia).",
+      "Do NOT administer strong pain medications or NSAIDs (like Ibuprofen) — they can mask signs of acute perforation.",
+      "Do NOT apply a heating pad or hot water bottle to the abdomen (can accelerate appendix rupture).",
+      "Do NOT administer laxatives, enemas, or purgatives."
+    ]
+  },
+  head_injury: {
+    title: "Head Trauma / Concussion / Suspected Intracranial Injury",
+    category: "Trauma / Neuro",
+    alertBadge: "🧠 TRAUMATIC BRAIN INJURY (TBI) & SPINAL PROTOCOL",
+    dos: [
+      "Keep the patient completely still with head, neck, and spine aligned in a neutral position.",
+      "Apply an ice pack wrapped in a cloth to any localized scalp bump or swelling.",
+      "If scalp is bleeding, apply gentle direct pressure with clean cloth UNLESS you suspect skull fracture (sunken area).",
+      "Monitor level of consciousness, pupil symmetry, and orientation continuously.",
+      "Seek immediate emergency care if patient vomited, lost consciousness even briefly, or exhibits memory loss."
+    ],
+    donts: [
+      "Do NOT move the patient's neck or turn their head if a spinal or neck fracture is possible.",
+      "Do NOT remove a motorcycle helmet unless trained and airway is critically compromised.",
+      "Do NOT administer Aspirin or Ibuprofen — use only Paracetamol if advised by doctor (Aspirin increases intracranial bleeding).",
+      "Do NOT plug ears or nose if clear watery fluid or blood is draining — let it drain."
     ]
   },
   general: {
@@ -275,7 +420,8 @@ const DatabaseService = {
     ambulances: [],
     hospitals: [],
     cases: [],
-    completedCases: []
+    completedCases: [],
+    appointments: []
   },
   channel: null,
 
@@ -375,9 +521,22 @@ const DatabaseService = {
     if (this.db.completedCases) {
       State.completedCases = this.db.completedCases;
     }
+    if (this.db.appointments) {
+      State.appointments = this.db.appointments;
+    }
+  },
+
+  syncStateToDb() {
+    this.db.patients = State.patients;
+    this.db.ambulances = State.ambulances;
+    this.db.hospitals = State.hospitals;
+    this.db.cases = State.cases;
+    this.db.completedCases = State.completedCases;
+    this.db.appointments = State.appointments;
   },
 
   async save(eventType, payload = null) {
+    this.syncStateToDb();
     this.saveToStorageLocalOnly();
 
     if (this.channel) {
@@ -397,6 +556,22 @@ const DatabaseService = {
 
   handleRemoteSync(data) {
     if (!data) return;
+    if (data.type === 'AMBULANCE_TELEMETRY' && data.payload) {
+      State.ambulanceCurrentPos = data.payload.location;
+      State.ambulanceLocation = data.payload.location;
+      State.remainingDistKm = data.payload.distKm;
+      State.remainingEtaMin = data.payload.etaMin;
+      State.caseStageIndex = data.payload.stageIndex;
+      State.activeLeg = data.payload.activeLeg;
+      if (data.payload.location) {
+        updateLiveAmbulanceMarker(data.payload.location.lat, data.payload.location.lng);
+      }
+      updateSimControlsDisplay();
+      if (State.activePortal === 'patient' && State.patientSubTab === 'firstaid') {
+        renderPatientFirstAid();
+      }
+      return;
+    }
     this.loadFromStorage();
     refreshAllActiveViews();
   }
@@ -1300,6 +1475,9 @@ function switchPatientSubTab(tabName) {
     renderPatientTracker();
   } else if (tabName === 'firstaid') {
     renderPatientFirstAid();
+  } else if (tabName === 'appointments') {
+    renderPatientAppointments();
+    initAppointmentBookingForm();
   }
 }
 
@@ -1319,6 +1497,7 @@ function switchActivePatient(patientId) {
   if (State.patientSubTab === 'phr') renderPatientPHR();
   else if (State.patientSubTab === 'tracker') renderPatientTracker();
   else if (State.patientSubTab === 'firstaid') renderPatientFirstAid();
+  else if (State.patientSubTab === 'appointments') renderPatientAppointments();
   else renderPatientNearbyHospitals();
 }
 
@@ -1480,7 +1659,7 @@ function updateSelectedSymptomsInput() {
   const chipDescriptions = State.selectedSymptoms.map(s => `${s.name} [Severity: ${s.severity}]`).join("; ");
 
   const current = input.value;
-  if (!current || current.includes("[Severity:")) {
+  if (!current || current.includes("Severity:")) {
     input.value = `Patient reports: ${chipDescriptions}.`;
   }
 }
@@ -1758,40 +1937,102 @@ function saveHealthTrackerEntry() {
   alert(`✓ New vitals logged for ${patient.name}: HR ${hr} bpm, BP ${sbp}/${dbp}, SpO2 ${spo2}%`);
 }
 
+// ==========================================
+// DYNAMIC SITUATION-SPECIFIC FIRST-AID SYSTEM (13 CATEGORIES)
+// ==========================================
+
+function determineFirstAidCategory(text) {
+  const combined = ((text || "") + " " + (State.currentCase.notes || "") + " " + State.selectedSymptoms.join(" ")).toLowerCase();
+
+  // 1. Cardiac (Priority 1)
+  if (combined.includes("chest") || combined.includes("heart") || combined.includes("stemi") || combined.includes("angina") || combined.includes("cardiac") || combined.includes("retrosternal") || (combined.includes("arm") && combined.includes("pain")) || (combined.includes("jaw") && combined.includes("pain"))) {
+    return "cardiac";
+  }
+  // 2. Stroke (Priority 2)
+  if (combined.includes("stroke") || combined.includes("facial droop") || combined.includes("slurred") || combined.includes("speech") || combined.includes("arm weakness") || combined.includes("fast") || combined.includes("hemiplegia") || combined.includes("droop") || combined.includes("paralysis")) {
+    return "stroke";
+  }
+  // 3. Unconscious / Syncope (Priority 3)
+  if (combined.includes("unconscious") || combined.includes("unresponsive") || combined.includes("faint") || combined.includes("syncope") || combined.includes("collapsed") || combined.includes("blackout") || combined.includes("coma")) {
+    return "unconscious";
+  }
+  // 4. Severe Bleeding / Hemorrhage (Priority 4)
+  if (combined.includes("bleed") || combined.includes("hemorrhage") || combined.includes("blood loss") || combined.includes("gushing") || combined.includes("spurting") || combined.includes("deep wound") || combined.includes("laceration")) {
+    return "bleeding";
+  }
+  // 5. Respiratory Distress / Asthma (Priority 5)
+  if (combined.includes("breath") || combined.includes("asthma") || combined.includes("dyspnea") || combined.includes("wheez") || combined.includes("choking") || combined.includes("stridor") || combined.includes("suffocat") || combined.includes("gasping") || combined.includes("shortness of breath")) {
+    return "respiratory";
+  }
+  // 6. Head Injuries / Concussion (Priority 6)
+  if (combined.includes("head injury") || combined.includes("head trauma") || combined.includes("concussion") || combined.includes("skull") || combined.includes("hit head") || combined.includes("head bleeding") || combined.includes("fluid from ear")) {
+    return "head_injury";
+  }
+  // 7. Seizures / Convulsions (Priority 7)
+  if (combined.includes("seizure") || combined.includes("convulsion") || combined.includes("epilep") || combined.includes("jerking") || combined.includes("foaming") || combined.includes("fit") || combined.includes("shaking uncontrollably")) {
+    return "seizures";
+  }
+  // 8. Anaphylaxis / Severe Allergy (Priority 8)
+  if (combined.includes("anaphylaxis") || combined.includes("severe allergy") || combined.includes("epipen") || combined.includes("throat swell") || combined.includes("tongue swell") || combined.includes("peanut allergy") || combined.includes("hives and breathing")) {
+    return "anaphylaxis";
+  }
+  // 9. Fractures / Broken Bones (Priority 9)
+  if (combined.includes("fracture") || combined.includes("broken bone") || combined.includes("bone break") || combined.includes("deformity") || combined.includes("dislocat") || combined.includes("snapped bone") || combined.includes("cannot bear weight")) {
+    return "fractures";
+  }
+  // 10. Burns & Scalds (Priority 10)
+  if (combined.includes("burn") || combined.includes("scald") || combined.includes("fire") || combined.includes("boiling water") || combined.includes("steam") || combined.includes("chemical burn") || combined.includes("blister") || combined.includes("charred")) {
+    return "burns";
+  }
+  // 11. Abdominal Pain / Appendicitis (Priority 11)
+  if (combined.includes("abdominal") || combined.includes("stomach pain") || combined.includes("belly pain") || combined.includes("appendicitis") || combined.includes("acute abdomen") || combined.includes("cramping") || combined.includes("severe stomach")) {
+    return "abdominal";
+  }
+  // 12. High Fever / Febrile (Priority 12)
+  if (combined.includes("fever") || combined.includes("high temp") || combined.includes("chills") || combined.includes("shivering") || combined.includes("pyrexia") || combined.includes("febrile") || combined.includes("hot to touch")) {
+    return "fever";
+  }
+  // 13. Persistent Vomiting / Dehydration (Priority 13)
+  if (combined.includes("vomit") || combined.includes("nausea") || combined.includes("throwing up") || combined.includes("threw up") || combined.includes("emesis") || combined.includes("cannot keep fluids")) {
+    return "vomiting";
+  }
+
+  return "general";
+}
+
 // Emergency Assistance while Waiting & Verified First-Aid
 function renderPatientFirstAid() {
   const container = document.getElementById('firstaid-live-content');
   if (!container) return;
 
+  const symptomsInput = document.getElementById('patient-symptoms-input')?.value || "";
+  const protoKey = determineFirstAidCategory(symptomsInput);
+  const proto = FIRST_AID_PROTOCOLS[protoKey] || FIRST_AID_PROTOCOLS.general;
+
   const ambCase = State.currentCase;
   const stage = CASE_STAGES[State.caseStageIndex - 1] || CASE_STAGES[1];
   const hosp = State.hospitals.find(h => h.id === ambCase.selectedHospitalId) || State.hospitals[0];
 
-  const lowerNotes = (ambCase.notes || "").toLowerCase();
-  let protoKey = "general";
-  if (lowerNotes.includes("chest") || lowerNotes.includes("heart") || lowerNotes.includes("stemi")) protoKey = "cardiac";
-  else if (lowerNotes.includes("stroke") || lowerNotes.includes("slurred") || lowerNotes.includes("droop")) protoKey = "stroke";
-  else if (lowerNotes.includes("breath") || lowerNotes.includes("asthma") || lowerNotes.includes("wheez")) protoKey = "respiratory";
-  else if (lowerNotes.includes("unconscious") || lowerNotes.includes("faint") || lowerNotes.includes("collapse")) protoKey = "unconscious";
-  else if (lowerNotes.includes("bleed") || lowerNotes.includes("hemorrhage")) protoKey = "bleeding";
-  else if (lowerNotes.includes("anaphylaxis") || lowerNotes.includes("allergy") || lowerNotes.includes("epipen")) protoKey = "anaphylaxis";
-
-  const proto = FIRST_AID_PROTOCOLS[protoKey] || FIRST_AID_PROTOCOLS.general;
-
-  const ambLoc = State.ambulanceLocation || { lat: 12.9480, lng: 77.6010 };
+  const ambLoc = State.ambulanceLocation || State.ambulanceCurrentPos || { lat: 12.9520, lng: 77.6010 };
   const patientLoc = ambCase.location || { lat: 12.9550, lng: 77.6050 };
-  const dist = calculateHaversineKm(ambLoc.lat, ambLoc.lng, patientLoc.lat, patientLoc.lng);
-  const etaMinutes = Math.max(2, Math.round(dist * 1.8 + 3));
+  const dist = State.remainingDistKm > 0 ? State.remainingDistKm : calculateHaversineKm(ambLoc.lat, ambLoc.lng, patientLoc.lat, patientLoc.lng);
+  const etaMinutes = State.remainingEtaMin > 0 ? State.remainingEtaMin : Math.max(1, Math.round(dist * 1.8 + 2));
+
+  const isEnRoute = State.caseStageIndex >= 3 && State.caseStageIndex < 8;
 
   container.innerHTML = `
     <!-- Top Live Ambulance Tracking Status Bar -->
-    <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 20px;">
+    <div style="background: rgba(30, 41, 59, 0.85); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 20px; box-shadow: 0 4px 18px rgba(0,0,0,0.3);">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 28px;">🚑</span>
           <div>
-            <h3 style="font-size: 16px; font-weight: 800; color: #fff;">Ambulance Unit #9021 En Route</h3>
-            <div style="font-size: 12px; color: var(--text-secondary);">Direct emergency dispatch allocated under Priority 1</div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin: 0;">
+              Ambulance Unit #9021 ${isEnRoute ? (State.activeLeg === 'leg2' ? 'En Route to Hospital' : 'Approaching Your Location') : 'Standby / Fleet Radar'}
+            </h3>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+              ${isEnRoute ? (State.activeLeg === 'leg2' ? `Patient Onboard • Transit locked to ${hosp?.name || 'Hospital'}` : 'Priority-1 emergency road dispatch active') : 'Emergency dispatch ready upon triage escalation'}
+            </div>
           </div>
         </div>
         <span class="status-indicator" style="background: rgba(16,185,129,0.2); color: #34d399; font-weight: 800; font-size: 12px;">
@@ -1801,9 +2042,9 @@ function renderPatientFirstAid() {
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; font-size: 12px;">
         <div>⏱️ Estimated Arrival: <strong style="color: #34d399; font-size: 14px;">~${etaMinutes} mins</strong></div>
-        <div>📍 Paramedic Location: <strong style="color: #fff;">${ambLoc.lat.toFixed(4)}°N, ${ambLoc.lng.toFixed(4)}°E</strong></div>
-        <div>🏥 Allocated Facility: <strong style="color: #60a5fa;">${hosp ? hosp.name : 'Metro Heart'}</strong></div>
-        <div>📞 Emergency Dispatch Desk: <strong style="color: #fde68a;">+91 112 / 108</strong></div>
+        <div>📍 Distance Remaining: <strong style="color: #fff;">${dist.toFixed(1)} km</strong></div>
+        <div>🏥 Target Hospital: <strong style="color: #60a5fa;">${hosp ? hosp.name : 'Metro Heart'}</strong></div>
+        <div>📞 Emergency Helpline: <strong style="color: #fde68a;">+91 112 / 108</strong></div>
       </div>
     </div>
 
@@ -1814,26 +2055,26 @@ function renderPatientFirstAid() {
           <span class="status-indicator" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: #ef4444; font-weight: 800;">
             ${proto.alertBadge}
           </span>
-          <h3 style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 6px;">${proto.title}</h3>
+          <h3 style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 6px; margin-bottom: 2px;">${proto.title}</h3>
         </div>
-        <span style="font-size: 11px; color: var(--text-muted);">Medically Reviewed Emergency Standard</span>
+        <span style="font-size: 11px; color: var(--text-muted);">Medically Reviewed Emergency Standard (WHO / AHA / Red Cross)</span>
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-        <!-- DOs Card -->
+        <!-- WHAT TO DO -->
         <div class="firstaid-card-do">
-          <h4 style="font-size: 14px; font-weight: 800; color: #34d399; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>✅</span> THINGS YOU SHOULD DO:
+          <h4 style="font-size: 13.5px; font-weight: 800; color: #34d399; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>✅</span> WHAT TO DO:
           </h4>
           <ul class="firstaid-list">
             ${proto.dos.map(item => `<li><span style="color: #34d399; font-weight: 700;">✓</span> ${item}</li>`).join("")}
           </ul>
         </div>
 
-        <!-- DON'Ts Card -->
+        <!-- WHAT NOT TO DO -->
         <div class="firstaid-card-dont">
-          <h4 style="font-size: 14px; font-weight: 800; color: #f87171; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🚫</span> THINGS YOU MUST AVOID:
+          <h4 style="font-size: 13.5px; font-weight: 800; color: #f87171; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🚫</span> WHAT NOT TO DO:
           </h4>
           <ul class="firstaid-list">
             ${proto.donts.map(item => `<li><span style="color: #f87171; font-weight: 700;">✕</span> ${item}</li>`).join("")}
@@ -1842,16 +2083,20 @@ function renderPatientFirstAid() {
       </div>
 
       <div style="margin-top: 14px; font-size: 11.5px; color: var(--text-muted); text-align: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
-        ⚠️ <strong>Important Notice:</strong> This guidance is emergency decision support while paramedics transit to your location. Follow all verbal instructions from the 112/108 dispatcher.
+        ⚠️ <strong>Important Medical Safety Notice:</strong> This guidance provides verified first-aid decision support while emergency services respond. It is not a substitute for professional medical diagnosis. Follow all verbal instructions from the emergency dispatcher.
       </div>
     </div>
   `;
 }
 
+// ==========================================
+// SYMPTOM TRIAGE & URGENCY CLASSIFICATION
+// ==========================================
+
 function analyzePatientSymptoms() {
   const text = document.getElementById('patient-symptoms-input')?.value;
   if (!text || text.trim() === "") {
-    alert("Please enter symptoms or select one of the common presets.");
+    alert("Please enter symptoms or select one of the common symptom presets.");
     return;
   }
 
@@ -1860,27 +2105,33 @@ function analyzePatientSymptoms() {
   const onsetSelect = document.getElementById('patient-onset-input');
   const onsetText = onsetSelect ? onsetSelect.options[onsetSelect.selectedIndex].text : "30-60 minutes ago";
 
-  // Use latest health tracker baseline vitals
+  // Synthesize baseline vitals
   const latestTrack = activePatient?.healthTrackerHistory?.[activePatient.healthTrackerHistory.length - 1];
   const syntheticVitals = {
-    hr: latestTrack?.heartRate || 82,
+    hr: latestTrack?.heartRate || 80,
     sbp: latestTrack?.bloodPressure?.sbp || 120,
     dbp: latestTrack?.bloodPressure?.dbp || 80,
-    spo2: latestTrack?.spo2 || 97,
-    rr: 17,
-    temp: latestTrack?.temp || 37.0,
+    spo2: latestTrack?.spo2 || 98,
+    rr: 16,
+    temp: latestTrack?.temp || 36.8,
     avpu: "Alert",
     gcs: 15
   };
 
   const lower = text.toLowerCase();
-  if (lower.includes("chest") || lower.includes("heart") || lower.includes("stroke") || lower.includes("speech") || lower.includes("droop") || lower.includes("breathing") || lower.includes("pain") || lower.includes("faint") || lower.includes("bleed")) {
-    syntheticVitals.hr = 108;
-    syntheticVitals.sbp = 88;
-    syntheticVitals.spo2 = 92;
+  const isSevere = lower.includes("chest") || lower.includes("heart") || lower.includes("stemi") ||
+                   lower.includes("stroke") || lower.includes("speech") || lower.includes("droop") ||
+                   lower.includes("breathing") || lower.includes("unconscious") || lower.includes("bleed") ||
+                   lower.includes("seizure") || lower.includes("anaphylaxis");
+
+  if (isSevere) {
+    syntheticVitals.hr = 110;
+    syntheticVitals.sbp = 86;
+    syntheticVitals.spo2 = 91;
+    syntheticVitals.rr = 26;
   }
 
-  // Evaluate Triage with linked Patient Medical Record
+  // Run TriageAgent
   const triage = TriageAgent.evaluate(text, syntheticVitals, activePatient);
 
   // Age-adjusted clinical weighting
@@ -1891,74 +2142,115 @@ function analyzePatientSymptoms() {
     }
   }
 
-  const isRedFlag = triage.redFlags.length > 0 || triage.urgency === "Emergency";
+  const resultContainer = document.getElementById('patient-triage-result');
+  if (resultContainer) resultContainer.style.display = 'block';
 
-  if (isRedFlag) {
-    // Problem is too severe -> Auto-select most efficient hospital and assign first priority to ambulance!
+  const loc = State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
+  updateHospitalDistancesFromLocation(loc.lat, loc.lng);
+  const nearestHosp = State.hospitals[0] || { id: "HOSP_1", name: "Metro Heart & Super-Specialty Hospital", calculatedEtaMinutes: 8, calculatedDistanceKm: 2.4, address: "Brigade Rd, Bengaluru" };
+
+  // Update dynamic first-aid view immediately
+  renderPatientFirstAid();
+
+  // 1. EMERGENCY CLASSIFICATION
+  if (triage.urgency === "Emergency" || triage.redFlags.length > 0) {
     autoDispatchPriorityAmbulance(text, patientAge, onsetText, triage);
-  } else {
-    // Clear, structured AI explanation for the patient
-    const resultContainer = document.getElementById('patient-triage-result');
-    resultContainer.style.display = 'block';
+    return;
+  }
 
-    const loc = State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
-    updateHospitalDistancesFromLocation(loc.lat, loc.lng);
-    const nearestHosp = State.hospitals[0] || { name: "St. Jude Community Hospital", calculatedEtaMinutes: 8, calculatedDistanceKm: 2.4 };
-
+  // 2. URGENT CLASSIFICATION
+  if (triage.urgency === "Urgent") {
     resultContainer.innerHTML = `
-      <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: var(--radius-lg); padding: 20px; margin-top: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
+      <div style="background: rgba(245, 158, 11, 0.12); border: 2px solid #f59e0b; border-radius: var(--radius-lg); padding: 20px; margin-top: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-          <span class="status-indicator" style="background: rgba(16,185,129,0.2); color: #34d399; border-color: #10b981; font-weight: 800; font-size: 12px;">
-            ✅ TRIAGE RESULT: ${triage.urgency.toUpperCase()}
+          <span class="status-indicator" style="background: rgba(245,158,11,0.25); color: #fbbf24; border-color: #f59e0b; font-weight: 800; font-size: 12.5px;">
+            ⚠️ TRIAGE ASSESSMENT: URGENT MEDICAL EVALUATION RECOMMENDED
           </span>
           <span style="font-size: 12px; color: var(--text-secondary);">
-            AI Confidence: <strong>${Math.round(triage.confidence * 100)}%</strong>
+            AI Acuity Score: <strong>NEWS2 ${triage.news2.score} • Acuity Moderate</strong>
           </span>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; font-size: 12px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; font-size: 12px;">
           <div>👤 Patient: <strong style="color: #fff;">${activePatient?.name || 'Patient'} (${patientAge}y)</strong></div>
           <div>⏱️ Symptom Onset: <strong style="color: #fde68a;">${onsetText}</strong></div>
-          <div>🩺 Acuity: <strong style="color: #60a5fa;">${triage.category}</strong></div>
+          <div>🩺 Clinical Category: <strong style="color: #fbbf24;">${triage.category}</strong></div>
         </div>
 
-        <div style="margin-bottom: 14px;">
-          <h4 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px;">
-            🔍 What the AI Checked & Detected:
-          </h4>
-          <ul style="font-size: 12.5px; color: var(--text-secondary); margin-left: 20px; line-height: 1.6;">
-            <li><strong>Symptom Pattern:</strong> Mild to moderate presentation without immediate life-threatening compromise.</li>
-            <li><strong>Care Recommendation:</strong> ${triage.requiredSpecialty} consultation recommended within the next 2-4 hours.</li>
-            <li><strong>Immediate Advice:</strong> Rest comfortably, stay hydrated, and do not perform strenuous activities.</li>
-          </ul>
+        <div style="margin-bottom: 14px; font-size: 12.5px; color: #fef3c7; line-height: 1.6;">
+          <strong>Clinical Assessment:</strong> Prompt in-person medical evaluation is recommended within the next <strong>2 to 4 hours</strong>. While immediate life support is not indicated, your symptoms require physician review to prevent escalation.
         </div>
 
-        <div style="border-top: 1px solid var(--border-color); padding-top: 12px;">
-          <div style="font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 6px;">
-            🏥 Closest Recommended Facility from Your Location:
+        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: 12px; margin-bottom: 16px;">
+          <div style="font-weight: 700; color: #f87171; font-size: 12px; margin-bottom: 4px;">
+            🚨 When to Immediately Request an Emergency Ambulance:
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface-elevated); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-            <div>
-              <div style="font-weight: 700; color: #fff; font-size: 13.5px;">${nearestHosp.name}</div>
-              <div style="font-size: 11.5px; color: var(--text-secondary);">📍 ${nearestHosp.address} • Driving time: ~${nearestHosp.calculatedEtaMinutes || 8} mins (${nearestHosp.calculatedDistanceKm || 2.4} km)</div>
-            </div>
-            <button class="btn btn-sm btn-primary" onclick="routeAmbulanceToDirectly('${nearestHosp.id}')">
-              Route Ambulance ➔
+          <div style="font-size: 11.5px; color: #fee2e2; line-height: 1.5;">
+            If you experience crushing chest pain, difficulty breathing, sudden face drooping or arm weakness, inability to speak, severe uncontrolled bleeding, or feel faint — <strong>do not wait</strong>. Tap 'Request Ambulance' below or call 112 / 108 immediately.
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;">
+          <div style="font-size: 12px; color: var(--text-secondary);">
+            Nearest urgent facility: <strong style="color: #fff;">${nearestHosp.name}</strong> (~${nearestHosp.calculatedEtaMinutes || 8} mins)
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" onclick="openAppointmentBookingWizard('${nearestHosp.id}', '${text.replace(/'/g, "\\'")}')" style="font-weight: 700;">
+              📅 Book Urgent Outpatient Consultation ➔
+            </button>
+            <button class="btn btn-danger" onclick="transferPatientToAmbulance('${text.replace(/'/g, "\\'")}')" style="font-weight: 700;">
+              🚑 Request Ambulance
             </button>
           </div>
         </div>
       </div>
     `;
 
-    appendAuditLog("PATIENT_TRIAGE_QUERY", "PATIENT", `Patient symptom check (Age ${patientAge}, Onset: ${onsetText}): ${triage.urgency}`, {
-      symptoms: text,
-      age: patientAge,
-      onset: onsetText,
-      triage
-    });
-
-    renderPatientNearbyHospitals();
+    appendAuditLog("PATIENT_TRIAGE_URGENT", "PATIENT", `Patient symptom check classified as URGENT (Age ${patientAge}, Onset: ${onsetText}): Prompt consultation advised.`);
+    return;
   }
+
+  // 3. ROUTINE / MILD PRESENTATION CLASSIFICATION
+  resultContainer.innerHTML = `
+    <div style="background: rgba(16, 185, 129, 0.1); border: 2px solid #10b981; border-radius: var(--radius-lg); padding: 20px; margin-top: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <span class="status-indicator" style="background: rgba(16,185,129,0.25); color: #34d399; border-color: #10b981; font-weight: 800; font-size: 12.5px;">
+          ✅ TRIAGE ASSESSMENT: ROUTINE / MILD PRESENTATION
+        </span>
+        <span style="font-size: 12px; color: var(--text-secondary);">
+          AI Acuity: <strong>Low Risk (NEWS2: ${triage.news2.score})</strong>
+        </span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 14px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; font-size: 12px;">
+        <div>👤 Patient: <strong style="color: #fff;">${activePatient?.name || 'Patient'} (${patientAge}y)</strong></div>
+        <div>⏱️ Symptom Onset: <strong style="color: #fde68a;">${onsetText}</strong></div>
+        <div>🩺 Specialty Recommended: <strong style="color: #34d399;">${triage.requiredSpecialty}</strong></div>
+      </div>
+
+      <div style="margin-bottom: 14px; font-size: 12.5px; color: var(--text-secondary); line-height: 1.6;">
+        <strong style="color: #fff;">Guidance Summary:</strong> Your symptoms represent a mild, non-emergency condition that does not require emergency room admission or ambulance dispatch. An outpatient appointment with a specialist physician is the most appropriate and convenient care path.
+      </div>
+
+      <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="font-size: 13.5px; font-weight: 700; color: #fff;">${nearestHosp.name}</div>
+            <div style="font-size: 11.5px; color: var(--text-secondary);">📍 ${nearestHosp.address} • Outpatient clinics open with available specialist slots</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAppointmentBookingWizard('${nearestHosp.id}', '${text.replace(/'/g, "\\'")}')" style="font-weight: 800; padding: 8px 18px;">
+            📅 Book Outpatient Appointment ➔
+          </button>
+        </div>
+      </div>
+
+      <div style="font-size: 11px; color: var(--text-muted); text-align: center;">
+        ℹ️ Outpatient bookings are scheduled directly with hospital clinic rosters. Emergency ambulances remain reserved for life-critical cases.
+      </div>
+    </div>
+  `;
+
+  appendAuditLog("PATIENT_TRIAGE_ROUTINE", "PATIENT", `Patient symptom check classified as ROUTINE (Age ${patientAge}, Onset: ${onsetText}): Directed to outpatient appointment booking.`);
 }
 
 function autoDispatchPriorityAmbulance(symptomsText, age, onsetText, triage) {
@@ -2011,7 +2303,7 @@ function autoDispatchPriorityAmbulance(symptomsText, age, onsetText, triage) {
     }
   );
 
-  // Render High-Acuity Priority 1 Alert in Patient Portal
+  // Render High-Acuity Priority 1 Alert in Patient Portal (NEVER show routine appointment booking here)
   const resultContainer = document.getElementById('patient-triage-result');
   if (resultContainer) {
     resultContainer.innerHTML = `
@@ -2040,12 +2332,17 @@ function autoDispatchPriorityAmbulance(symptomsText, age, onsetText, triage) {
           <button class="btn btn-danger" onclick="switchPortal('ambulance')" style="padding: 10px 18px; font-weight: 800; font-size: 13px;">
             🚑 Go to Live Ambulance Dispatch & Routing ➔
           </button>
-          <span style="font-size: 11px; color: #fca5a5;">(Transferring view to Ambulance Portal in 3s...)</span>
+          <button class="btn btn-secondary" onclick="switchPatientSubTab('firstaid')" style="padding: 10px 16px; font-size: 13px;">
+            🛡️ View Life-Saving First-Aid Steps
+          </button>
         </div>
       </div>
     `;
     resultContainer.style.display = 'block';
   }
+
+  // Kick off Two-Leg Emergency Mission along real road route
+  initiateTwoLegEmergencyMission(loc, bestHosp);
 
   // Automatically transition to Ambulance Portal
   setTimeout(() => {
@@ -2056,7 +2353,7 @@ function autoDispatchPriorityAmbulance(symptomsText, age, onsetText, triage) {
 function loadPatientPreset(type) {
   const input = document.getElementById('patient-symptoms-input');
   if (type === 'chest_pain') {
-    input.value = "Crushing chest pain radiating to my left shoulder and arm for the last 30 minutes, feeling nauseous and dizzy.";
+    input.value = "Crushing retrosternal chest pain radiating to left shoulder and arm for the last 30 minutes, feeling nauseous, cold sweat, and dizzy.";
   } else if (type === 'stroke') {
     input.value = "Sudden difficulty speaking, right side of face looks drooping, right arm feels weak and numb.";
   } else if (type === 'headache') {
@@ -2065,6 +2362,874 @@ function loadPatientPreset(type) {
     input.value = "Itchy pink rash on forearms after gardening, no swelling or difficulty breathing.";
   }
   analyzePatientSymptoms();
+}
+
+// ==========================================
+// OUTPATIENT APPOINTMENT BOOKING & MANAGEMENT
+// ==========================================
+
+function initAppointmentBookingForm() {
+  const hospSelect = document.getElementById('appt-hospital-select');
+  if (!hospSelect) return;
+
+  hospSelect.innerHTML = State.hospitals.map(h => `
+    <option value="${h.id}" ${h.id === State.selectedApptHospitalId ? 'selected' : ''}>
+      ${h.name} (${h.type} • 📍 ${h.address})
+    </option>
+  `).join("");
+
+  renderAppointmentDoctors(State.selectedApptHospitalId);
+}
+
+function onApptHospitalChanged(hospitalId) {
+  State.selectedApptHospitalId = hospitalId;
+  State.selectedApptDoctorId = null;
+  State.selectedApptSlot = null;
+  renderAppointmentDoctors(hospitalId);
+}
+
+function renderAppointmentDoctors(hospitalId) {
+  const grid = document.getElementById('appt-doctors-grid');
+  if (!grid) return;
+
+  const hosp = State.hospitals.find(h => h.id === hospitalId) || State.hospitals[0];
+  const doctors = hosp?.doctors || [];
+
+  if (doctors.length === 0) {
+    grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--text-muted); font-size: 12px; padding: 12px;">No outpatient physicians currently configured for this facility.</div>`;
+    return;
+  }
+
+  // Pre-select first available doctor if none selected
+  if (!State.selectedApptDoctorId || !doctors.some(d => d.id === State.selectedApptDoctorId)) {
+    const firstAvail = doctors.find(d => d.available !== false) || doctors[0];
+    State.selectedApptDoctorId = firstAvail?.id || null;
+  }
+
+  grid.innerHTML = doctors.map(doc => {
+    const isSelected = doc.id === State.selectedApptDoctorId;
+    const isAvail = doc.available !== false;
+    const initials = doc.name.split(" ").filter(w => !w.startsWith("Dr.")).map(w => w[0]).join("") || "MD";
+
+    return `
+      <div class="doctor-card ${isSelected ? 'selected' : ''}" onclick="selectAppointmentDoctor('${doc.id}')" style="opacity: ${isAvail ? '1' : '0.6'};">
+        <div class="doctor-avatar">${initials}</div>
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h5 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #fff;">${doc.name}</h5>
+            <span class="appointment-badge ${isAvail ? 'confirmed' : 'cancelled'}" style="font-size: 10px;">
+              ${isAvail ? 'Available' : 'Off Duty'}
+            </span>
+          </div>
+          <div style="font-size: 11.5px; color: #60a5fa; font-weight: 600; margin-top: 2px;">${doc.specialty}</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${doc.qualification} • ${doc.experience || '10+ yrs'}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  renderAppointmentDatePills(State.selectedApptDoctorId);
+}
+
+function selectAppointmentDoctor(doctorId) {
+  State.selectedApptDoctorId = doctorId;
+  State.selectedApptSlot = null;
+
+  document.querySelectorAll('#appt-doctors-grid .doctor-card').forEach(c => {
+    c.classList.remove('selected');
+  });
+
+  renderAppointmentDoctors(State.selectedApptHospitalId);
+}
+
+function renderAppointmentDatePills(doctorId) {
+  const container = document.getElementById('appt-date-pills');
+  if (!container) return;
+
+  const dates = [
+    { date: "2026-11-08", day: "Sun", num: "08" },
+    { date: "2026-11-09", day: "Mon", num: "09" },
+    { date: "2026-11-10", day: "Tue", num: "10" },
+    { date: "2026-11-11", day: "Wed", num: "11" },
+    { date: "2026-11-12", day: "Thu", num: "12" }
+  ];
+
+  if (!State.selectedApptDate || !dates.some(d => d.date === State.selectedApptDate)) {
+    State.selectedApptDate = dates[0].date;
+  }
+
+  container.innerHTML = dates.map(d => {
+    const isSelected = d.date === State.selectedApptDate;
+    return `
+      <div class="date-pill ${isSelected ? 'active' : ''}" onclick="selectAppointmentDate('${d.date}')">
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">${d.day}</div>
+        <div style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 2px;">${d.num}</div>
+        <div style="font-size: 10px; color: var(--text-secondary);">Nov</div>
+      </div>
+    `;
+  }).join("");
+
+  renderAppointmentSlots(State.selectedApptDoctorId, State.selectedApptDate);
+}
+
+function selectAppointmentDate(dateStr) {
+  State.selectedApptDate = dateStr;
+  State.selectedApptSlot = null;
+
+  document.querySelectorAll('#appt-date-pills .date-pill').forEach(p => {
+    p.classList.remove('active');
+  });
+
+  renderAppointmentDatePills(State.selectedApptDoctorId);
+}
+
+function renderAppointmentSlots(doctorId, dateStr) {
+  const grid = document.getElementById('appt-slots-grid');
+  if (!grid) return;
+
+  const standardSlots = [
+    "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
+    "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM", "05:00 PM"
+  ];
+
+  const hosp = State.hospitals.find(h => h.id === State.selectedApptHospitalId) || State.hospitals[0];
+  const doctor = hosp?.doctors?.find(d => d.id === doctorId);
+
+  if (!doctor || doctor.available === false) {
+    grid.innerHTML = `<div style="grid-column: 1 / -1; color: #f87171; font-size: 12px; padding: 10px;">Doctor is currently off-duty for outpatient consultations. Please choose another physician.</div>`;
+    return;
+  }
+
+  grid.innerHTML = standardSlots.map(slot => {
+    // Check if slot is already booked (Double-Booking Conflict Prevention)
+    const isBooked = State.appointments.some(a => 
+      a.hospitalId === hosp.id &&
+      a.doctorId === doctorId &&
+      a.date === dateStr &&
+      a.timeSlot === slot &&
+      a.status !== "Cancelled"
+    );
+
+    const isSelected = (slot === State.selectedApptSlot);
+
+    if (isBooked) {
+      return `
+        <div class="slot-pill booked" title="Slot already reserved by another patient">
+          <span>${slot}</span>
+          <span style="font-size: 9px; opacity: 0.8; display: block; margin-top: 1px;">Booked</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="slot-pill ${isSelected ? 'selected' : ''}" onclick="selectAppointmentSlot('${slot}')">
+        <span>${slot}</span>
+        <span style="font-size: 9px; color: #34d399; display: block; margin-top: 1px;">Available</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectAppointmentSlot(slotStr) {
+  State.selectedApptSlot = slotStr;
+  renderAppointmentSlots(State.selectedApptDoctorId, State.selectedApptDate);
+}
+
+function confirmAppointmentBooking() {
+  const hospital = State.hospitals.find(h => h.id === State.selectedApptHospitalId) || State.hospitals[0];
+  const doctor = hospital?.doctors?.find(d => d.id === State.selectedApptDoctorId);
+  const date = State.selectedApptDate;
+  const timeSlot = State.selectedApptSlot;
+  const reason = document.getElementById('appt-reason-input')?.value.trim();
+
+  if (!doctor) {
+    alert("Please select a specialist doctor for your outpatient consultation.");
+    return;
+  }
+  if (!date) {
+    alert("Please select an appointment date.");
+    return;
+  }
+  if (!timeSlot) {
+    alert("Please select an available consultation time slot.");
+    return;
+  }
+  if (!reason) {
+    alert("Please enter a brief description of your symptoms or reason for visit.");
+    return;
+  }
+
+  // Double-booking verification
+  const conflict = State.appointments.find(a => 
+    a.hospitalId === hospital.id &&
+    a.doctorId === doctor.id &&
+    a.date === date &&
+    a.timeSlot === timeSlot &&
+    a.status !== "Cancelled"
+  );
+
+  if (conflict) {
+    alert(`Conflict: ${doctor.name} already has a confirmed booking for ${timeSlot} on ${date}. Please select another time slot.`);
+    renderAppointmentSlots(doctor.id, date);
+    return;
+  }
+
+  const activePatient = State.patients.find(p => p.id === State.activePatientId) || State.patients[0];
+  const newApptId = `APT-${Date.now().toString().slice(-6)}`;
+
+  const newAppointment = {
+    id: newApptId,
+    patientId: activePatient.id,
+    patientName: activePatient.name,
+    patientPhone: activePatient.contact || "+91 98450 12345",
+    hospitalId: hospital.id,
+    hospitalName: hospital.name,
+    doctorId: doctor.id,
+    doctorName: doctor.name,
+    specialty: doctor.specialty,
+    date: date,
+    timeSlot: timeSlot,
+    reason: reason,
+    symptoms: reason,
+    status: "Confirmed",
+    bookedAt: new Date().toISOString(),
+    notes: `Initial outpatient consult with ${doctor.name} (${doctor.specialty}).`
+  };
+
+  State.appointments.unshift(newAppointment);
+  DatabaseService.save('APPOINTMENT_BOOKED', newAppointment);
+
+  // Render receipt
+  const receiptContainer = document.getElementById('appt-confirmation-box');
+  if (receiptContainer) {
+    receiptContainer.style.display = 'block';
+    receiptContainer.innerHTML = `
+      <div class="appointment-confirmation-receipt">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 26px;">🎉</span>
+            <div>
+              <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin: 0;">Outpatient Appointment Confirmed!</h3>
+              <div style="font-size: 11.5px; color: #a7f3d0;">Booking Reference: <strong>${newApptId}</strong></div>
+            </div>
+          </div>
+          <span class="appointment-badge confirmed">Confirmed</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; background: rgba(0,0,0,0.25); padding: 14px; border-radius: var(--radius-md); font-size: 12.5px; margin-bottom: 14px;">
+          <div>🏥 Hospital: <strong style="color: #fff;">${hospital.name}</strong></div>
+          <div>👨‍⚕️ Attending Doctor: <strong style="color: #60a5fa;">${doctor.name}</strong> (${doctor.specialty})</div>
+          <div>📅 Date & Time: <strong style="color: #fde68a;">${date} at ${timeSlot}</strong></div>
+          <div>👤 Patient: <strong style="color: #fff;">${activePatient.name}</strong> (${activePatient.contact || ''})</div>
+          <div style="grid-column: 1 / -1;">🩺 Reason: <span style="color: #e2e8f0;">${reason}</span></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="font-size: 11px; color: #cbd5e1;">
+            📍 Please arrive 15 minutes before your scheduled slot. Bring previous medical records.
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="alert('Appointment ${newApptId} added to your digital calendar.')">
+              📅 Add to Calendar
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="filterPatientAppointments('Upcoming')">
+              📋 View My Appointments
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    receiptContainer.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Refresh slots to mark newly booked slot
+  renderAppointmentSlots(doctor.id, date);
+
+  // Refresh lists
+  renderPatientAppointments();
+  renderHospitalAppointmentManagement();
+
+  appendAuditLog("OUTPATIENT_APPOINTMENT_BOOKED", "PATIENT", `Patient ${activePatient.name} booked outpatient consultation ${newApptId} with ${doctor.name} at ${hospital.name} on ${date} ${timeSlot}.`);
+}
+
+function resetAppointmentBookingForm() {
+  State.selectedApptSlot = null;
+  const reasonInput = document.getElementById('appt-reason-input');
+  if (reasonInput) reasonInput.value = "";
+  const receiptContainer = document.getElementById('appt-confirmation-box');
+  if (receiptContainer) receiptContainer.style.display = 'none';
+  renderAppointmentSlots(State.selectedApptDoctorId, State.selectedApptDate);
+}
+
+function openAppointmentBookingWizard(hospitalId, reasonText = "") {
+  switchPortal('patient');
+  switchPatientSubTab('appointments');
+
+  if (hospitalId) {
+    State.selectedApptHospitalId = hospitalId;
+    const hospSelect = document.getElementById('appt-hospital-select');
+    if (hospSelect) hospSelect.value = hospitalId;
+  }
+
+  if (reasonText) {
+    const reasonInput = document.getElementById('appt-reason-input');
+    if (reasonInput) reasonInput.value = reasonText;
+  }
+
+  renderAppointmentDoctors(State.selectedApptHospitalId);
+
+  const wizard = document.getElementById('patient-subview-appointments');
+  if (wizard) wizard.scrollIntoView({ behavior: 'smooth' });
+}
+
+function filterPatientAppointments(filterName) {
+  State.apptFilter = filterName;
+
+  document.querySelectorAll('#patient-subview-appointments .btn-outline').forEach(btn => {
+    btn.classList.toggle('active', btn.innerText.includes(filterName));
+  });
+
+  renderPatientAppointments();
+}
+
+function renderPatientAppointments() {
+  const container = document.getElementById('patient-appointments-list');
+  if (!container) return;
+
+  const activePatientId = State.activePatientId || "PAT_001";
+  let appts = State.appointments.filter(a => a.patientId === activePatientId);
+
+  if (State.apptFilter && State.apptFilter !== "All") {
+    appts = appts.filter(a => a.status === State.apptFilter);
+  }
+
+  if (appts.length === 0) {
+    container.innerHTML = `
+      <div style="background: var(--bg-surface-elevated); border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+        No ${State.apptFilter !== 'All' ? State.apptFilter.toLowerCase() : ''} appointments found for this profile.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = appts.map(a => {
+    const badgeClass = a.status === 'Confirmed' ? 'confirmed' : (a.status === 'Completed' ? 'completed' : 'cancelled');
+    return `
+      <div class="appointment-list-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <span class="appointment-badge ${badgeClass}">${a.status}</span>
+            <span style="font-size: 11px; color: var(--text-muted); margin-left: 8px;">ID: <strong>${a.id}</strong></span>
+            <h4 style="margin: 6px 0 2px 0; font-size: 14.5px; font-weight: 700; color: #fff;">${a.doctorName} (${a.specialty})</h4>
+            <div style="font-size: 12px; color: #60a5fa;">🏥 ${a.hospitalName}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 13.5px; font-weight: 700; color: #fde68a;">${a.timeSlot}</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">${a.date}</div>
+          </div>
+        </div>
+
+        <div style="font-size: 12px; color: var(--text-secondary); margin: 8px 0; background: rgba(0,0,0,0.2); padding: 8px 10px; border-radius: 6px;">
+          <strong>Reason:</strong> ${a.reason}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">
+            Booked on ${new Date(a.bookedAt || Date.now()).toLocaleDateString()}
+          </div>
+          <div style="display: flex; gap: 8px;">
+            ${a.status === 'Confirmed' ? `
+              <button class="btn btn-sm btn-secondary" onclick="reschedulePatientAppointment('${a.id}')">Reschedule</button>
+              <button class="btn btn-sm btn-outline" style="color: #f87171;" onclick="cancelPatientAppointment('${a.id}')">Cancel</button>
+            ` : `
+              <button class="btn btn-sm btn-outline" onclick="openAppointmentBookingWizard('${a.hospitalId}', '${(a.reason || '').replace(/'/g, "\\'")}')">Book Again</button>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function cancelPatientAppointment(appointmentId) {
+  if (!confirm(`Are you sure you want to cancel appointment ${appointmentId}?`)) return;
+
+  const appt = State.appointments.find(a => a.id === appointmentId);
+  if (appt) {
+    appt.status = "Cancelled";
+    DatabaseService.save('APPOINTMENT_CANCELLED', { appointmentId });
+    renderPatientAppointments();
+    renderHospitalAppointmentManagement();
+    appendAuditLog("APPOINTMENT_CANCELLED", "PATIENT", `Appointment ${appointmentId} was cancelled by patient.`);
+  }
+}
+
+function reschedulePatientAppointment(appointmentId) {
+  const appt = State.appointments.find(a => a.id === appointmentId);
+  if (!appt) return;
+
+  if (confirm(`Reschedule appointment ${appointmentId}? You will select a new date and time slot.`)) {
+    appt.status = "Cancelled";
+    DatabaseService.save('APPOINTMENT_RESCHEDULE_INIT', { appointmentId });
+    openAppointmentBookingWizard(appt.hospitalId, `Reschedule for ${appt.id}: ${appt.reason}`);
+  }
+}
+
+// ==========================================
+// HOSPITAL APPOINTMENT MANAGEMENT CONTROLLER
+// ==========================================
+
+function renderHospitalAppointmentManagement() {
+  const tbody = document.getElementById('hospital-appointments-tbody');
+  const countBadge = document.getElementById('hosp-appt-count-badge');
+  const doctorsGrid = document.getElementById('hospital-doctors-management-grid');
+
+  const hospId = State.selectedHospitalId || "HOSP_1";
+  const hosp = State.hospitals.find(h => h.id === hospId) || State.hospitals[0];
+
+  const hospAppts = State.appointments.filter(a => a.hospitalId === hospId);
+
+  if (countBadge) {
+    countBadge.innerText = `${hospAppts.length} Bookings Recorded for ${hosp?.name || 'Selected Facility'}`;
+  }
+
+  if (tbody) {
+    if (hospAppts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 22px;">No outpatient appointments currently registered for this hospital.</td></tr>`;
+    } else {
+      tbody.innerHTML = hospAppts.map(a => {
+        const badgeClass = a.status === 'Confirmed' ? 'confirmed' : (a.status === 'Completed' ? 'completed' : 'cancelled');
+        return `
+          <tr>
+            <td><strong>${a.id}</strong></td>
+            <td>
+              <div style="font-weight: 700; color: #fff;">${a.patientName}</div>
+              <div style="font-size: 11px; color: var(--text-secondary);">${a.patientPhone || ''}</div>
+            </td>
+            <td>
+              <div style="font-weight: 600; color: #60a5fa;">${a.doctorName}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${a.specialty}</div>
+            </td>
+            <td>${a.date}</td>
+            <td><strong style="color: #fde68a;">${a.timeSlot}</strong></td>
+            <td style="max-width: 220px; font-size: 11.5px; color: var(--text-secondary);">${a.reason}</td>
+            <td><span class="appointment-badge ${badgeClass}">${a.status}</span></td>
+            <td>
+              <div style="display: flex; gap: 4px;">
+                ${a.status !== 'Confirmed' ? `
+                  <button class="btn btn-sm btn-outline" onclick="hospitalConfirmAppointment('${a.id}')" title="Confirm booking">✓ Confirm</button>
+                ` : ''}
+                ${a.status !== 'Cancelled' ? `
+                  <button class="btn btn-sm btn-danger" style="padding: 3px 8px; font-size: 11px;" onclick="hospitalRejectAppointment('${a.id}')" title="Reject / Cancel">✕ Reject</button>
+                ` : `
+                  <span style="font-size: 11px; color: var(--text-muted);">Cancelled</span>
+                `}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+  }
+
+  // Specialist Roster Configuration
+  if (doctorsGrid && hosp && hosp.doctors) {
+    doctorsGrid.innerHTML = hosp.doctors.map(doc => {
+      const isAvail = doc.available !== false;
+      return `
+        <div class="doctor-card" style="border-left: 4px solid ${isAvail ? '#10b981' : '#ef4444'};">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div>
+              <h5 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">${doc.name}</h5>
+              <div style="font-size: 12px; color: #60a5fa; font-weight: 600;">${doc.specialty}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${doc.qualification} • ${doc.experience || '10+ yrs'}</div>
+            </div>
+            <span class="appointment-badge ${isAvail ? 'confirmed' : 'cancelled'}">
+              ${isAvail ? 'On Duty' : 'Off Duty'}
+            </span>
+          </div>
+
+          <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn btn-sm ${isAvail ? 'btn-secondary' : 'btn-primary'}" onclick="toggleDoctorAvailability('${doc.id}')">
+              ${isAvail ? 'Set to Off Duty' : 'Set to On Duty'}
+            </button>
+            <span style="font-size: 11px; color: var(--text-secondary);">
+              Status: <strong>${isAvail ? 'Accepting Slots' : 'Suspended'}</strong>
+            </span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+}
+
+function hospitalConfirmAppointment(appointmentId) {
+  const appt = State.appointments.find(a => a.id === appointmentId);
+  if (appt) {
+    appt.status = "Confirmed";
+    DatabaseService.save('APPOINTMENT_CONFIRMED', { appointmentId });
+    renderHospitalAppointmentManagement();
+    renderPatientAppointments();
+    appendAuditLog("APPOINTMENT_CONFIRMED", "HOSPITAL", `Hospital staff confirmed appointment ${appointmentId} for ${appt.patientName}.`);
+  }
+}
+
+function hospitalRejectAppointment(appointmentId) {
+  const appt = State.appointments.find(a => a.id === appointmentId);
+  if (appt) {
+    appt.status = "Cancelled";
+    DatabaseService.save('APPOINTMENT_REJECTED', { appointmentId });
+    renderHospitalAppointmentManagement();
+    renderPatientAppointments();
+    appendAuditLog("APPOINTMENT_REJECTED", "HOSPITAL", `Hospital staff rejected/cancelled appointment ${appointmentId}.`);
+  }
+}
+
+function toggleDoctorAvailability(doctorId) {
+  const hospId = State.selectedHospitalId || "HOSP_1";
+  const hosp = State.hospitals.find(h => h.id === hospId);
+  const doc = hosp?.doctors?.find(d => d.id === doctorId);
+
+  if (doc) {
+    doc.available = !doc.available;
+    DatabaseService.save('DOCTOR_AVAILABILITY_CHANGED', { doctorId, available: doc.available });
+    renderHospitalAppointmentManagement();
+    appendAuditLog("DOCTOR_ROSTER_UPDATE", "HOSPITAL", `Doctor ${doc.name} availability set to: ${doc.available ? 'On Duty' : 'Off Duty'}.`);
+  }
+}
+
+// ==========================================
+// REALISTIC CONTINUOUS AMBULANCE MOVEMENT ENGINE
+// ==========================================
+
+let activeMovementPolyline = null;
+let liveAmbulanceMarker = null;
+
+function interpolateWaypoints(rawCoords, targetCount = 65) {
+  if (!rawCoords || rawCoords.length === 0) return [];
+  if (rawCoords.length >= targetCount) return rawCoords;
+
+  const result = [];
+  const segments = rawCoords.length - 1;
+  const stepsPerSegment = Math.max(1, Math.ceil(targetCount / segments));
+
+  for (let i = 0; i < segments; i++) {
+    const p1 = rawCoords[i];
+    const p2 = rawCoords[i + 1];
+
+    for (let s = 0; s < stepsPerSegment; s++) {
+      const t = s / stepsPerSegment;
+      const lat = p1[0] + (p2[0] - p1[0]) * t;
+      const lng = p1[1] + (p2[1] - p1[1]) * t;
+      result.push([parseFloat(lat.toFixed(6)), parseFloat(lng.toFixed(6))]);
+    }
+  }
+
+  result.push(rawCoords[rawCoords.length - 1]);
+  return result;
+}
+
+function generateRealisticRoadPath(startPt, endPt) {
+  const lat1 = startPt.lat || startPt[0];
+  const lng1 = startPt.lng || startPt[1];
+  const lat2 = endPt.lat || endPt[0];
+  const lng2 = endPt.lng || endPt[1];
+
+  // Create realistic arterial road junctions along urban sector
+  const midLat1 = lat1 + (lat2 - lat1) * 0.35;
+  const midLng1 = lng1 + (lng2 - lng1) * 0.15 + 0.002;
+
+  const midLat2 = lat1 + (lat2 - lat1) * 0.65 - 0.0015;
+  const midLng2 = lng1 + (lng2 - lng1) * 0.75;
+
+  const junctionPoints = [
+    [lat1, lng1],
+    [lat1 + (midLat1 - lat1) * 0.5, lng1],
+    [midLat1, midLng1],
+    [midLat2, midLng1],
+    [midLat2, midLng2],
+    [lat2, midLng2],
+    [lat2, lng2]
+  ];
+
+  return interpolateWaypoints(junctionPoints, 75);
+}
+
+async function calculateRoadRoute(start, end) {
+  const startPt = { lat: start.lat || start[0], lng: start.lng || start[1] };
+  const endPt = { lat: end.lat || end[0], lng: end.lng || end[1] };
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${startPt.lng},${startPt.lat};${endPt.lng},${endPt.lat}?overview=full&geometries=geojson`;
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 2000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.routes && data.routes[0]?.geometry?.coordinates) {
+        // Swap [lng, lat] to [lat, lng]
+        const rawCoords = data.routes[0].geometry.coordinates.map(pt => [pt[1], pt[0]]);
+        return interpolateWaypoints(rawCoords, 65);
+      }
+    }
+  } catch (err) {}
+
+  return generateRealisticRoadPath(startPt, endPt);
+}
+
+function updateLiveAmbulanceMarker(lat, lng) {
+  if (!leafletMap) return;
+
+  const ambIcon = L.divIcon({
+    className: 'custom-amb-div',
+    html: `<div class="ambulance-marker" style="transform: scale(1.15);">🚑<div class="pulse-ring"></div></div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19]
+  });
+
+  if (liveAmbulanceMarker) {
+    liveAmbulanceMarker.setLatLng([lat, lng]);
+  } else if (leafletMarkersLayer) {
+    liveAmbulanceMarker = L.marker([lat, lng], { icon: ambIcon, zIndexOffset: 2000 });
+    leafletMarkersLayer.addLayer(liveAmbulanceMarker);
+  }
+}
+
+function drawActiveMovementPolyline(waypoints) {
+  if (!leafletMap || !leafletRouteLayer) return;
+
+  if (activeMovementPolyline) {
+    leafletRouteLayer.removeLayer(activeMovementPolyline);
+  }
+
+  const isLeg1 = (State.activeLeg === 'leg1');
+  activeMovementPolyline = L.polyline(waypoints, {
+    color: isLeg1 ? '#38bdf8' : '#10b981',
+    weight: 5.5,
+    opacity: 0.9,
+    dashArray: isLeg1 ? '4, 4' : null
+  });
+
+  activeMovementPolyline.bindTooltip(
+    isLeg1 ? '⚡ Dispatched Ambulance ➔ Approaching Patient' : '⚡ Ambulance In-Transit ➔ Emergency Department',
+    { sticky: true }
+  );
+
+  leafletRouteLayer.addLayer(activeMovementPolyline);
+}
+
+function updateSimControlsDisplay() {
+  const stageBadge = document.getElementById('map-sim-mission-stage');
+  const telemetry = document.getElementById('map-sim-telemetry');
+  const trafficGuide = document.getElementById('map-traffic-guide-route-text');
+  const trafficMeta = document.getElementById('map-traffic-guide-meta');
+
+  const legLabel = State.activeLeg === 'leg1' ? 'Leg 1: En Route to Patient' : (State.activeLeg === 'leg2' ? 'Leg 2: En Route to Hospital' : 'Standby');
+  if (stageBadge) stageBadge.innerText = legLabel;
+
+  const distText = State.remainingDistKm > 0 ? `${State.remainingDistKm} km` : '0.1 km';
+  const etaText = State.remainingEtaMin > 0 ? `~${State.remainingEtaMin} mins` : '~1 min';
+
+  if (telemetry) {
+    telemetry.innerHTML = `ETA: <strong>${etaText}</strong> • Dist: <strong>${distText}</strong>`;
+  }
+
+  if (trafficGuide) {
+    trafficGuide.innerHTML = `Ambulance #9021 ➔ ${legLabel}`;
+  }
+  if (trafficMeta) {
+    trafficMeta.innerHTML = `<span>⏱️ <strong>ETA: ${etaText}</strong></span><span>📍 <strong>${distText} remaining</strong></span>`;
+  }
+}
+
+function syncAmbulanceTelemetry() {
+  const payload = {
+    location: State.ambulanceCurrentPos,
+    stageIndex: State.caseStageIndex,
+    activeLeg: State.activeLeg,
+    distKm: State.remainingDistKm,
+    etaMin: State.remainingEtaMin,
+    timestamp: Date.now()
+  };
+
+  try {
+    localStorage.setItem('aegis_ambulance_telemetry', JSON.stringify(payload));
+  } catch (e) {}
+
+  if (DatabaseService.channel) {
+    try {
+      DatabaseService.channel.postMessage({ type: 'AMBULANCE_TELEMETRY', payload });
+    } catch (e) {}
+  }
+
+  // Update Patient Portal First-Aid View if visible
+  if (State.activePortal === 'patient' && State.patientSubTab === 'firstaid') {
+    renderPatientFirstAid();
+  }
+}
+
+function setSimSpeed(multiplier) {
+  State.simSpeedMultiplier = multiplier;
+  document.querySelectorAll('.map-speed-btn-group .map-speed-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const target = document.getElementById(`btn-speed-${multiplier}x`);
+  if (target) target.classList.add('active');
+}
+
+function toggleSimPause() {
+  State.isSimPaused = !State.isSimPaused;
+  const btn = document.getElementById('btn-sim-pause');
+  if (btn) {
+    btn.innerHTML = State.isSimPaused ? '▶️ Resume' : '⏸️ Pause';
+    btn.classList.toggle('active', State.isSimPaused);
+  }
+}
+
+function startAmbulanceMovement(waypoints, onComplete) {
+  // Clear any existing timer to avoid multiple running intervals
+  if (State.ambulanceMovementTimer) {
+    clearInterval(State.ambulanceMovementTimer);
+    State.ambulanceMovementTimer = null;
+  }
+
+  if (!waypoints || waypoints.length === 0) {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  State.currentRouteWaypoints = waypoints;
+  State.currentRouteIndex = 0;
+  State.isSimPaused = false;
+
+  const simControls = document.getElementById('map-sim-controls');
+  if (simControls) simControls.style.display = 'flex';
+
+  drawActiveMovementPolyline(waypoints);
+
+  const initialPt = waypoints[0];
+  State.ambulanceCurrentPos = { lat: initialPt[0], lng: initialPt[1] };
+  State.ambulanceLocation = State.ambulanceCurrentPos;
+  updateLiveAmbulanceMarker(initialPt[0], initialPt[1]);
+
+  let tickCounter = 0;
+
+  State.ambulanceMovementTimer = setInterval(() => {
+    if (State.isSimPaused) return;
+
+    State.currentRouteIndex += State.simSpeedMultiplier;
+
+    if (State.currentRouteIndex >= State.currentRouteWaypoints.length - 1) {
+      State.currentRouteIndex = State.currentRouteWaypoints.length - 1;
+      const finalPt = State.currentRouteWaypoints[State.currentRouteIndex];
+      State.ambulanceCurrentPos = { lat: finalPt[0], lng: finalPt[1] };
+      State.ambulanceLocation = State.ambulanceCurrentPos;
+      updateLiveAmbulanceMarker(finalPt[0], finalPt[1]);
+
+      clearInterval(State.ambulanceMovementTimer);
+      State.ambulanceMovementTimer = null;
+
+      State.remainingDistKm = 0;
+      State.remainingEtaMin = 0;
+      updateSimControlsDisplay();
+      syncAmbulanceTelemetry();
+
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const currentPt = State.currentRouteWaypoints[State.currentRouteIndex];
+    State.ambulanceCurrentPos = { lat: currentPt[0], lng: currentPt[1] };
+    State.ambulanceLocation = State.ambulanceCurrentPos;
+
+    // Calculate remaining distance along route
+    let remDist = 0;
+    for (let i = State.currentRouteIndex; i < State.currentRouteWaypoints.length - 1; i++) {
+      const p1 = State.currentRouteWaypoints[i];
+      const p2 = State.currentRouteWaypoints[i + 1];
+      remDist += calculateHaversineKm(p1[0], p1[1], p2[0], p2[1]);
+    }
+    State.remainingDistKm = parseFloat(remDist.toFixed(2));
+    State.remainingEtaMin = Math.max(1, Math.round(State.remainingDistKm * 1.8 + 1));
+
+    updateLiveAmbulanceMarker(currentPt[0], currentPt[1]);
+    updateSimControlsDisplay();
+
+    // Auto-pan Leaflet map to follow ambulance
+    if (leafletMap && tickCounter % 5 === 0) {
+      const bounds = leafletMap.getBounds();
+      const currentLatLng = L.latLng(currentPt[0], currentPt[1]);
+      if (!bounds.contains(currentLatLng) || bounds.pad(-0.15).contains(currentLatLng) === false) {
+        leafletMap.panTo(currentLatLng, { animate: true, duration: 0.4 });
+      }
+    }
+
+    tickCounter++;
+    if (tickCounter % 3 === 0) {
+      syncAmbulanceTelemetry();
+    }
+  }, 220);
+}
+
+async function initiateTwoLegEmergencyMission(patientLocation, targetHospital) {
+  const patientLoc = patientLocation || State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
+  const targetHosp = targetHospital || State.hospitals.find(h => h.id === State.currentCase.selectedHospitalId) || State.hospitals[0];
+
+  const startLoc = { lat: 12.9520, lng: 77.6010 };
+  State.activeLeg = 'leg1';
+
+  State.caseStageIndex = 3;
+  State.currentCase.stageIndex = 3;
+  State.currentCase.status = "Ambulance Dispatched";
+  renderAmbulanceStepper();
+
+  appendAuditLog("MISSION_LEG_1_START", "AMBULANCE", `Ambulance Unit #9021 dispatched. Moving along road route toward patient at ${patientLoc.name || 'Pickup Point'}.`);
+
+  const leg1Waypoints = await calculateRoadRoute(startLoc, patientLoc);
+
+  startAmbulanceMovement(leg1Waypoints, () => {
+    // Arrival at Patient
+    State.caseStageIndex = 4;
+    State.currentCase.stageIndex = 4;
+    State.currentCase.status = "Reached Patient";
+    renderAmbulanceStepper();
+    appendAuditLog("REACHED_PATIENT", "AMBULANCE", `Ambulance #9021 arrived at patient location. Initial paramedic assessment underway.`);
+
+    // Automatically transition to Stage 5: Patient Picked Up after brief window (1.8s)
+    setTimeout(async () => {
+      State.caseStageIndex = 5;
+      State.currentCase.stageIndex = 5;
+      State.currentCase.status = "Patient Picked Up";
+      State.activeLeg = 'leg2';
+      renderAmbulanceStepper();
+      appendAuditLog("PATIENT_PICKED_UP", "AMBULANCE", `Patient onboard Unit #9021. Transit initiated to target facility '${targetHosp.name}'.`);
+
+      State.caseStageIndex = 6;
+      State.currentCase.stageIndex = 6;
+      State.currentCase.status = "En Route to Hospital";
+      renderAmbulanceStepper();
+
+      const leg2Waypoints = await calculateRoadRoute(patientLoc, { lat: targetHosp.lat, lng: targetHosp.lng });
+
+      startAmbulanceMovement(leg2Waypoints, () => {
+        // Arrival at Hospital
+        State.caseStageIndex = 7;
+        State.currentCase.stageIndex = 7;
+        State.currentCase.status = "Reached Hospital";
+        State.activeLeg = 'idle';
+        renderAmbulanceStepper();
+        appendAuditLog("REACHED_HOSPITAL", "AMBULANCE", `Unit #9021 arrived at ${targetHosp.name} Emergency Department Bay. Handover ready.`);
+
+        const advBtn = document.getElementById('btn-advance-case-stage');
+        if (advBtn) {
+          advBtn.style.display = 'inline-flex';
+          advBtn.innerText = '🏁 Complete Clinical Handover & Case';
+        }
+      });
+    }, 1800);
+  });
 }
 
 function transferPatientToAmbulance(symptoms) {
@@ -2653,6 +3818,23 @@ function finalizeDestinationChoice(hospitalId, reasonText, isOverride = false, e
   if (leafletMap) renderLeafletMap();
   renderMapCanvas();
   renderRecommendationsList(State.currentCase.recommendations, true);
+
+  // If in active Leg 2 transit, dynamically reroute moving ambulance to the new facility
+  if (State.activeLeg === 'leg2' && State.ambulanceCurrentPos) {
+    calculateRoadRoute(State.ambulanceCurrentPos, { lat: hosp.lat, lng: hosp.lng }).then(newWaypoints => {
+      startAmbulanceMovement(newWaypoints, () => {
+        State.caseStageIndex = 7;
+        State.currentCase.stageIndex = 7;
+        State.currentCase.status = "Reached Hospital";
+        State.activeLeg = 'idle';
+        renderAmbulanceStepper();
+        appendAuditLog("REACHED_HOSPITAL", "AMBULANCE", `Ambulance arrived at ${hosp.name} ED Bay.`);
+      });
+    });
+  } else if (State.activeLeg === 'idle' && State.currentCase.isAccepted) {
+    const patientLoc = State.currentCase.location || { lat: 12.9550, lng: 77.6050 };
+    initiateTwoLegEmergencyMission(patientLoc, hosp);
+  }
 }
 
 // ------------------------------------------
@@ -2675,6 +3857,8 @@ function switchHospitalSubTab(tabName) {
     renderHospitalAlertQueue();
   } else if (tabName === 'completed') {
     renderHospitalCompletedAdmissions();
+  } else if (tabName === 'appointments') {
+    renderHospitalAppointmentManagement();
   }
 }
 
@@ -2833,6 +4017,7 @@ function refreshAllActiveViews() {
     if (State.patientSubTab === 'phr') renderPatientPHR();
     else if (State.patientSubTab === 'tracker') renderPatientTracker();
     else if (State.patientSubTab === 'firstaid') renderPatientFirstAid();
+    else if (State.patientSubTab === 'appointments') renderPatientAppointments();
     else renderPatientNearbyHospitals();
   } else if (State.activePortal === 'ambulance') {
     renderAmbulanceStepper();
@@ -2846,6 +4031,7 @@ function refreshAllActiveViews() {
     if (State.hospitalSubTab === 'capacity') renderHospitalCapacityView();
     else if (State.hospitalSubTab === 'inbound') renderHospitalAlertQueue();
     else if (State.hospitalSubTab === 'completed') renderHospitalCompletedAdmissions();
+    else if (State.hospitalSubTab === 'appointments') renderHospitalAppointmentManagement();
   }
 }
 
